@@ -1,0 +1,192 @@
+Metadata-Version: 2.2
+Name: ape-infura
+Version: 0.8.4
+Summary: ape-infura: Infura Provider plugins for Ethereum-based networks
+Home-page: https://github.com/ApeWorX/ape-infura
+Author: ApeWorX Ltd.
+Author-email: admin@apeworx.io
+License: Apache-2.0
+Keywords: ethereum
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Natural Language :: English
+Classifier: Operating System :: MacOS
+Classifier: Operating System :: POSIX
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Requires-Python: >=3.9,<4
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: eth-ape<0.9,>=0.8.1
+Requires-Dist: web3<8,>=6.20.1
+Requires-Dist: requests<3,>=2.28.1
+Provides-Extra: test
+Requires-Dist: pytest>=6.0; extra == "test"
+Requires-Dist: pytest-xdist; extra == "test"
+Requires-Dist: pytest-mock; extra == "test"
+Requires-Dist: pytest-cov; extra == "test"
+Requires-Dist: hypothesis<7.0,>=6.2.0; extra == "test"
+Requires-Dist: ape-arbitrum; extra == "test"
+Requires-Dist: ape-avalanche; extra == "test"
+Requires-Dist: ape-blast; extra == "test"
+Requires-Dist: ape-optimism; extra == "test"
+Requires-Dist: ape-polygon; extra == "test"
+Requires-Dist: websocket-client; extra == "test"
+Provides-Extra: lint
+Requires-Dist: black<25,>=24.10.0; extra == "lint"
+Requires-Dist: mypy<2,>=1.14.1; extra == "lint"
+Requires-Dist: types-setuptools; extra == "lint"
+Requires-Dist: flake8<8,>=7.1.1; extra == "lint"
+Requires-Dist: flake8-breakpoint<2,>=1.1.0; extra == "lint"
+Requires-Dist: flake8-print<6,>=5.0.0; extra == "lint"
+Requires-Dist: flake8-pydantic; extra == "lint"
+Requires-Dist: flake8-type-checking; extra == "lint"
+Requires-Dist: isort<6,>=5.13.2; extra == "lint"
+Requires-Dist: mdformat>=0.7.21; extra == "lint"
+Requires-Dist: mdformat-gfm>=0.3.5; extra == "lint"
+Requires-Dist: mdformat-frontmatter>=0.4.1; extra == "lint"
+Requires-Dist: mdformat-pyproject>=0.0.2; extra == "lint"
+Provides-Extra: doc
+Requires-Dist: sphinx-ape; extra == "doc"
+Provides-Extra: release
+Requires-Dist: setuptools>=75.6.0; extra == "release"
+Requires-Dist: setuptools-scm; extra == "release"
+Requires-Dist: wheel; extra == "release"
+Requires-Dist: twine; extra == "release"
+Provides-Extra: dev
+Requires-Dist: pytest>=6.0; extra == "dev"
+Requires-Dist: pytest-xdist; extra == "dev"
+Requires-Dist: pytest-mock; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: hypothesis<7.0,>=6.2.0; extra == "dev"
+Requires-Dist: ape-arbitrum; extra == "dev"
+Requires-Dist: ape-avalanche; extra == "dev"
+Requires-Dist: ape-blast; extra == "dev"
+Requires-Dist: ape-optimism; extra == "dev"
+Requires-Dist: ape-polygon; extra == "dev"
+Requires-Dist: websocket-client; extra == "dev"
+Requires-Dist: black<25,>=24.10.0; extra == "dev"
+Requires-Dist: mypy<2,>=1.14.1; extra == "dev"
+Requires-Dist: types-setuptools; extra == "dev"
+Requires-Dist: flake8<8,>=7.1.1; extra == "dev"
+Requires-Dist: flake8-breakpoint<2,>=1.1.0; extra == "dev"
+Requires-Dist: flake8-print<6,>=5.0.0; extra == "dev"
+Requires-Dist: flake8-pydantic; extra == "dev"
+Requires-Dist: flake8-type-checking; extra == "dev"
+Requires-Dist: isort<6,>=5.13.2; extra == "dev"
+Requires-Dist: mdformat>=0.7.21; extra == "dev"
+Requires-Dist: mdformat-gfm>=0.3.5; extra == "dev"
+Requires-Dist: mdformat-frontmatter>=0.4.1; extra == "dev"
+Requires-Dist: mdformat-pyproject>=0.0.2; extra == "dev"
+Requires-Dist: sphinx-ape; extra == "dev"
+Requires-Dist: setuptools>=75.6.0; extra == "dev"
+Requires-Dist: setuptools-scm; extra == "dev"
+Requires-Dist: wheel; extra == "dev"
+Requires-Dist: twine; extra == "dev"
+Requires-Dist: commitizen; extra == "dev"
+Requires-Dist: pre-commit; extra == "dev"
+Requires-Dist: pytest-watch; extra == "dev"
+Requires-Dist: IPython; extra == "dev"
+Requires-Dist: ipdb; extra == "dev"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# Quick Start
+
+Use the [Metamask Developer](https://developer.metamask.io/) (F.K.A. Infura) provider plugin to interact with blockchains via APIs.
+This plugin supports the following ecosystems:
+
+- Arbitrum
+- Avalanche
+- Base
+- Blast
+- BSC
+- Celo
+- Ethereum
+- Linea
+- Mantle
+- Optimism
+- Palm
+- Polygon
+- Scroll
+- Starknet
+- Unichain
+- zkSync
+
+## Dependencies
+
+- [python3](https://www.python.org/downloads) version 3.9 up to 3.12.
+
+## Installation
+
+### via `pip`
+
+You can install the latest release via [`pip`](https://pypi.org/project/pip/):
+
+```bash
+pip install ape-infura
+```
+
+### via `setuptools`
+
+You can clone the repository and use [`setuptools`](https://github.com/pypa/setuptools) for the most up-to-date version:
+
+```bash
+git clone https://github.com/ApeWorX/ape-infura.git
+cd ape-infura
+python3 setup.py install
+```
+
+## Quick Usage
+
+First, make sure you have one of the following environment variables set (it doesn't matter which one):
+
+- WEB3_INFURA_PROJECT_ID
+- WEB3_INFURA_API_KEY
+
+Either in your current terminal session or in your root RC file (e.g. `.bashrc`), add the following:
+
+```bash
+export WEB3_INFURA_PROJECT_ID=MY_API_TOKEN
+
+# Multple tokens
+export WEB3_INFURA_PROJECT_ID=MY_API_TOKEN1, MY_API_TOKEN2
+```
+
+Additionally, if your app requires an API secret as well, use either of the following environment variables:
+
+- WEB3_INFURA_PROJECT_ID
+- WEB3_INFURA_API_KEY
+
+And each request will use the secret as a form of authentication.
+
+To use the Infura provider plugin in most commands, set it via the `--network` option:
+
+```bash
+ape console --network ethereum:sepolia:infura
+```
+
+To connect to Infura from a Python script, use the `networks` top-level manager:
+
+```python
+from ape import networks
+
+with networks.parse_network_choice("ethereum:mainnet:infura") as provider:
+    # Also, access the websocket URI:
+    print(provider.ws_uri)
+```

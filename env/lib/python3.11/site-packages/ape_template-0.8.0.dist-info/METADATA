@@ -1,0 +1,122 @@
+Metadata-Version: 2.1
+Name: ape-template
+Version: 0.8.0
+Summary: ape-template: ape plugin for cookiecutter based templates
+Home-page: https://github.com/ApeWorX/ape-template
+Author: ApeWorX Ltd.
+Author-email: admin@apeworx.io
+License: Apache-2.0
+Keywords: ethereum
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Natural Language :: English
+Classifier: Operating System :: MacOS
+Classifier: Operating System :: POSIX
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.9,<4
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: click
+Requires-Dist: cookiecutter <2.2.0,>=2.1.1
+Requires-Dist: eth-ape <0.9,>=0.8.1
+Provides-Extra: dev
+Requires-Dist: pytest >=6.0 ; extra == 'dev'
+Requires-Dist: pytest-xdist ; extra == 'dev'
+Requires-Dist: pytest-cov ; extra == 'dev'
+Requires-Dist: hypothesis <7.0,>=6.2.0 ; extra == 'dev'
+Requires-Dist: black <25,>=24.4.2 ; extra == 'dev'
+Requires-Dist: mypy <2,>=1.10.0 ; extra == 'dev'
+Requires-Dist: types-setuptools ; extra == 'dev'
+Requires-Dist: flake8 <8,>=7.0.0 ; extra == 'dev'
+Requires-Dist: flake8-breakpoint <2,>=1.1.0 ; extra == 'dev'
+Requires-Dist: flake8-print <6,>=5.0.0 ; extra == 'dev'
+Requires-Dist: isort <6,>=5.13.2 ; extra == 'dev'
+Requires-Dist: mdformat >=0.7.17 ; extra == 'dev'
+Requires-Dist: mdformat-gfm >=0.3.5 ; extra == 'dev'
+Requires-Dist: mdformat-frontmatter >=0.4.1 ; extra == 'dev'
+Requires-Dist: mdformat-pyproject >=0.0.1 ; extra == 'dev'
+Requires-Dist: setuptools ; extra == 'dev'
+Requires-Dist: wheel ; extra == 'dev'
+Requires-Dist: twine ; extra == 'dev'
+Requires-Dist: commitizen ; extra == 'dev'
+Requires-Dist: pre-commit ; extra == 'dev'
+Requires-Dist: pytest-watch ; extra == 'dev'
+Requires-Dist: IPython ; extra == 'dev'
+Requires-Dist: ipdb ; extra == 'dev'
+Provides-Extra: lint
+Requires-Dist: black <25,>=24.4.2 ; extra == 'lint'
+Requires-Dist: mypy <2,>=1.10.0 ; extra == 'lint'
+Requires-Dist: types-setuptools ; extra == 'lint'
+Requires-Dist: flake8 <8,>=7.0.0 ; extra == 'lint'
+Requires-Dist: flake8-breakpoint <2,>=1.1.0 ; extra == 'lint'
+Requires-Dist: flake8-print <6,>=5.0.0 ; extra == 'lint'
+Requires-Dist: isort <6,>=5.13.2 ; extra == 'lint'
+Requires-Dist: mdformat >=0.7.17 ; extra == 'lint'
+Requires-Dist: mdformat-gfm >=0.3.5 ; extra == 'lint'
+Requires-Dist: mdformat-frontmatter >=0.4.1 ; extra == 'lint'
+Requires-Dist: mdformat-pyproject >=0.0.1 ; extra == 'lint'
+Provides-Extra: release
+Requires-Dist: setuptools ; extra == 'release'
+Requires-Dist: wheel ; extra == 'release'
+Requires-Dist: twine ; extra == 'release'
+Provides-Extra: test
+Requires-Dist: pytest >=6.0 ; extra == 'test'
+Requires-Dist: pytest-xdist ; extra == 'test'
+Requires-Dist: pytest-cov ; extra == 'test'
+Requires-Dist: hypothesis <7.0,>=6.2.0 ; extra == 'test'
+
+# Quick Start
+
+The ape-template plugin allows you to use cookiecutter to template an ape project.
+
+## Dependencies
+
+- [python3](https://www.python.org/downloads) version 3.9 up to 3.12.
+
+## Installation
+
+### via `pip`
+
+You can install the latest release via [`pip`](https://pypi.org/project/pip/):
+
+```bash
+pip install ape-template
+```
+
+### via `setuptools`
+
+You can clone the repository and use [`setuptools`](https://github.com/pypa/setuptools) for the most up-to-date version:
+
+```bash
+git clone https://github.com/ApeWorX/ape-template.git
+cd ape-template
+python3 setup.py install
+```
+
+## Quick Usage
+
+Use `-h` to list all the commands.
+
+```bash
+ape template -h
+```
+
+To use the `template` command, provide either a GitHub repository ID or a raw URI:
+
+```bash
+ape template gh:<github org>/<project>
+
+ape template <URI>
+```
+
+For more information on Cookiecutter, see their [documentation](https://cookiecutter.readthedocs.io/en/stable/).
+
+## Development
+
+Please see the [contributing guide](CONTRIBUTING.md) to learn more how to contribute to this project.
+Comments, questions, criticisms and pull requests are welcomed.

@@ -1,0 +1,2 @@
+[ape_cli_subcommands]
+ape_solidity = ape_solidity._cli:cli

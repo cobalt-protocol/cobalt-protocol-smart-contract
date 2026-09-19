@@ -1,0 +1,73 @@
+Metadata-Version: 2.4
+Name: tokenlists
+Version: 0.1.8
+Summary: Python implementation of Uniswaps' tokenlists
+Author-email: Ben Hauser <ben@hauser.id>, ApeWorX LTD <admin@apeworx.io>
+License-Expression: Apache-2.0
+Project-URL: Repository, https://github.com/ApeWorX/py-tokenlists
+Keywords: ethereum
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Natural Language :: English
+Classifier: Operating System :: MacOS
+Classifier: Operating System :: POSIX
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: 3.14
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: click<9,>=8.1.7
+Requires-Dist: pydantic<3,>=2.5.2
+Requires-Dist: pyyaml<7,>=6.0
+Requires-Dist: requests<3,>=2.28.1
+Dynamic: license-file
+
+# py-tokenlists
+
+[Uniswap Token Lists](https://github.com/Uniswap/token-lists) implementation in Python.
+
+## Dependencies
+
+- [python3](https://www.python.org/downloads/release/python-368/) version 3.8 or greater, python3-dev
+
+## Installation
+
+### via `pip`
+
+You can install the latest release via [`pip`](https://pypi.org/project/pip/):
+
+```bash
+pip install tokenlists
+```
+
+### via `setuptools`
+
+You can clone the repository and use [`setuptools`](https://github.com/pypa/setuptools) for the most up-to-date version:
+
+```bash
+git clone https://github.com/ApeWorX/py-tokenlists.git
+cd py-tokenlists
+python3 setup.py install
+```
+
+## Quick Usage
+
+```python
+>>> from tokenlists import TokenListManager
+>>> tlm = TokenListManager()
+
+>>> tlm.available_tokenlists()
+[]
+
+>>> tlm.install_tokenlist("tokens.1inch.eth")
+>>> tlm.available_tokenlists()
+['1inch']
+```
+
+## License
+
+This project is licensed under the [MIT license](LICENSE).

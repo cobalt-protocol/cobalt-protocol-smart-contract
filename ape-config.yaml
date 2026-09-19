@@ -1,0 +1,28 @@
+name: cobalt-protocol
+
+compile:
+  output_extra:
+    - ABI
+
+solidity:
+  version: 0.8.27
+  import_remapping:
+    - "@openzeppelin=OpenZeppelin/5.6.1"
+
+dependencies:
+  - name: OpenZeppelin
+    github: OpenZeppelin/openzeppelin-contracts
+    version: 5.6.1
+
+networks:
+  custom:
+    - name: bot_chain_test_net
+      chain_id: 968
+      ecosystem: bot_chain
+      base_ecosystem_plugin: ethereum
+      default_provider: node
+
+node:
+  bot_chain:
+    bot_chain_test_net:
+      uri: https://rpc.bohr.life
