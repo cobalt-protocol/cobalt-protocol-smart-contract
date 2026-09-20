@@ -22,6 +22,11 @@ contract ListingTokenPrizeContract is Ownable {
     constructor(address initialOwner) Ownable(initialOwner) {}
 
     function addListingTokenPrize(address _tokenAddress) external onlyOwner {
+        require(
+            listingToken[_tokenAddress].listingTokenPrizeId == 0,
+            "Token already listed"
+        );
+
         listingTokenPrizeId++;
 
         listingToken[_tokenAddress] = ListingTokenPrize({
@@ -30,5 +35,11 @@ contract ListingTokenPrizeContract is Ownable {
         });
 
         emit ListingTokenPrizeAdded(listingTokenPrizeId, _tokenAddress);
+    }
+
+    function isTokenListed(
+        address _tokenAddress
+    ) external view returns (bool) {
+        return listingToken[_tokenAddress].listingTokenPrizeId != 0;
     }
 }
