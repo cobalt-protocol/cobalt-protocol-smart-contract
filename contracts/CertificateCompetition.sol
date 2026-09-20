@@ -11,6 +11,7 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 import "./CompetitionManager.sol";
 import "./CertificateManager.sol";
 import "./SignerManager.sol";
+import {IPFSHelper} from "./helpers/IPFSHelper.sol";
 
 contract CertificateCompetition is ERC721, ERC721URIStorage, Ownable {
     CompetitionManager public competitionManagerContract;
@@ -68,12 +69,6 @@ contract CertificateCompetition is ERC721, ERC721URIStorage, Ownable {
         _;
     }
 
-    function _toIPFSURI(
-        string memory cid
-    ) internal pure returns (string memory) {
-        return string.concat("ipfs://", cid);
-    }
-
     function safeMintCertificateParticipant(
         uint256 _competitionId,
         bytes memory signature
@@ -91,7 +86,7 @@ contract CertificateCompetition is ERC721, ERC721URIStorage, Ownable {
                 _competitionId
             );
 
-        string memory uri = _toIPFSURI(competition.certificateCID);
+        string memory uri = IPFSHelper.toIPFSURI(competition.certificateCID);
 
         bytes32 messageHash = keccak256(
             abi.encodePacked(
@@ -166,7 +161,7 @@ contract CertificateCompetition is ERC721, ERC721URIStorage, Ownable {
             "Certificate participant winner already claimed"
         );
 
-        string memory uri = _toIPFSURI(winner.certificateCID);
+        string memory uri = IPFSHelper.toIPFSURI(winner.certificateCID);
 
         bytes32 messageHash = keccak256(
             abi.encodePacked(

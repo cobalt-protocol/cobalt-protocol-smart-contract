@@ -8,6 +8,7 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 
 import "./CompetitionManager.sol";
 import "./SignerManager.sol";
+import {IPFSHelper} from "./helpers/IPFSHelper.sol";
 
 contract CertificateManager is Ownable {
     CompetitionManager public competitionManagerContract;
@@ -84,7 +85,7 @@ contract CertificateManager is Ownable {
                 _participant,
                 _participant,
                 _competitionId,
-                string.concat("ipfs://", comp.certificateCID)
+                IPFSHelper.toIPFSURI(comp.certificateCID)
             )
         );
 
@@ -148,7 +149,7 @@ contract CertificateManager is Ownable {
                 _participant,
                 _participant,
                 _winnerId,
-                string.concat("ipfs://", winner.certificateCID)
+                IPFSHelper.toIPFSURI(winner.certificateCID)
             )
         );
 

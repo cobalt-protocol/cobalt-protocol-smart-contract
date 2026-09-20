@@ -127,13 +127,15 @@ contract CompetitionManager is Ownable {
                 "Prize token must be the same for all winners"
             );
 
-            (, address listedTokenAddress, ) = listingTokenPrizeContract
+            (, address listedTokenAddress, bool isPrizeTokenActive) = listingTokenPrizeContract
                 .listingToken(_winners[i].prizeToken);
 
             require(
                 listedTokenAddress == _winners[i].prizeToken,
                 "Prize token is not listed"
             );
+
+            require(isPrizeTokenActive, "Prize token is not active");
         }
 
         FeeManager.PlatformFee memory platformFee = feeManagerContract.getFees(
@@ -145,13 +147,15 @@ contract CompetitionManager is Ownable {
         uint256 fee = platformFee.treasuryFee;
 
         if (fee > 0) {
-            (, address listedTreasuryToken, ) = listingTokenPrizeContract
+            (, address listedTreasuryToken, bool isTreasuryTokenActive) = listingTokenPrizeContract
                 .listingToken(_treasuryToken);
 
             require(
                 listedTreasuryToken == _treasuryToken,
                 "Treasury token is not listed"
             );
+
+            require(isTreasuryTokenActive, "Treasury token is not active");
 
             treasuryPlatformContract.addTreasury{value: msg.value}(
                 _treasuryToken,
