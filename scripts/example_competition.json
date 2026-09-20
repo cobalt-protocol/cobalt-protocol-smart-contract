@@ -1,0 +1,31 @@
+{
+  "competition": {
+    "title": "Web3 Hackathon 2026",
+    "category": "Hackathon",
+    "description": "Build innovative dApps using blockchain technology.",
+    "participationRequirement": "Open for all developers",
+    "durationInDays": 30,
+    "guidebookCID": "QmGuidebookCID123",
+    "participantCertCID": "QmParticipantCertCID123"
+  },
+  "prizes": [
+    {
+      "rank": 1,
+      "title": "1st Place",
+      "amount": 0.05,
+      "winnerCertCID": "QmWinnerCert1stCID123"
+    },
+    {
+      "rank": 2,
+      "title": "2nd Place",
+      "amount": 0.03,
+      "winnerCertCID": "QmWinnerCert2ndCID123"
+    },
+    {
+      "rank": 3,
+      "title": "3rd Place",
+      "amount": 0.01,
+      "winnerCertCID": "QmWinnerCert3rdCID123"
+    }
+  ]
+}
