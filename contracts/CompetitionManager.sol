@@ -127,7 +127,7 @@ contract CompetitionManager is Ownable {
                 "Prize token must be the same for all winners"
             );
 
-            (, address listedTokenAddress) = listingTokenPrizeContract
+            (, address listedTokenAddress, ) = listingTokenPrizeContract
                 .listingToken(_winners[i].prizeToken);
 
             require(
@@ -145,7 +145,7 @@ contract CompetitionManager is Ownable {
         uint256 fee = platformFee.treasuryFee;
 
         if (fee > 0) {
-            (, address listedTreasuryToken) = listingTokenPrizeContract
+            (, address listedTreasuryToken, ) = listingTokenPrizeContract
                 .listingToken(_treasuryToken);
 
             require(

@@ -8,6 +8,7 @@ contract ListingTokenPrizeContract is Ownable {
     struct ListingTokenPrize {
         uint256 listingTokenPrizeId;
         address tokenAddress;
+        bool isActive;
     }
 
     uint256 private listingTokenPrizeId;
@@ -31,7 +32,8 @@ contract ListingTokenPrizeContract is Ownable {
 
         listingToken[_tokenAddress] = ListingTokenPrize({
             listingTokenPrizeId: listingTokenPrizeId,
-            tokenAddress: _tokenAddress
+            tokenAddress: _tokenAddress,
+            isActive: true
         });
 
         emit ListingTokenPrizeAdded(listingTokenPrizeId, _tokenAddress);
