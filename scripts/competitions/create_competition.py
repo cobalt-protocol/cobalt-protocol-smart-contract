@@ -1,0 +1,157 @@
+import json
+import os
+from datetime import datetime, timezone, timedelta
+
+import click
+from ape import accounts, networks, project
+from dotenv import load_dotenv
+
+load_dotenv()
+
+NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
+
+
+@click.command()
+@click.argument("account_name")
+@click.argument("input_json", type=click.Path(exists=True))
+@click.option("--contract", "contract_address", default=None, help="Contract address (default: COMPETITION_CONTRACT from .env)")
+@click.option("--network", help="Network specifier")
+def cli(account_name, input_json, contract_address, network):
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT")
+    if not contract_address:
+        print("Error: Contract address not provided and COMPETITION_CONTRACT not set in .env")
+        return
+
+    with networks.parse_network_choice(network) as provider:
+        print(f"Active Network: {provider.network.name}")
+        try:
+            akun = accounts.load(account_name)
+        except KeyError:
+            print(f"Error: Account '{account_name}' is not found in Ape.")
+            return
+
+        token_symbol = provider.network.ecosystem.fee_token_symbol
+        saldo_eth = akun.balance / 10**18
+
+        print(f"Caller      : {akun.address}")
+        print(f"Balance     : {saldo_eth} {token_symbol}")
+
+        contract = project.CompetitionManager.at(contract_address)
+        print(f"Contract    : {contract.address}")
+
+        fee_manager_address = contract.feeManagerContract()
+        fee_manager = project.FeeManager.at(fee_manager_address)
+        print(f"Fee Manager : {fee_manager.address}")
+
+        with open(input_json, "r") as f:
+            data = json.load(f)
+
+        competition = data["competition"]
+        winners_data = data["winners"]
+        treasury_token = competition.get("treasuryToken", NATIVE_TOKEN)
+        platform_fee_id = competition.get("platformFeeId", 1)
+
+        fee_data = fee_manager.getFees(platform_fee_id)
+        if fee_data.id == 0:
+            print(f"Error: Fee option ID {platform_fee_id} does not exist in FeeManager.")
+            return
+
+        treasury_fee = fee_data.treasuryFee
+
+        if not winners_data:
+            print("Error: Competition must have at least one winner.")
+            return
+
+        first_prize_token = winners_data[0]["prizeToken"]
+        for i, w in enumerate(winners_data):
+            if w["prizeToken"] != first_prize_token:
+                print(f"Error: Winner [{i}] prizeToken ({w['prizeToken']}) does not match first winner prizeToken ({first_prize_token}). All winners in a competition must use the same prize token.")
+                return
+
+        if treasury_token == NATIVE_TOKEN:
+            print("Treasury Token: Native Token")
+        else:
+            print(f"Treasury Token: {treasury_token}")
+
+        print(f"Fee Option ID : {platform_fee_id} ({fee_data.title} - {fee_data.description})")
+        print(f"Treasury Fee  : {treasury_fee / 10**18} ({treasury_fee} wei)")
+
+        now = datetime.now(timezone.utc)
+        if "durationInSeconds" in competition:
+            duration_seconds = competition["durationInSeconds"]
+            duration_desc = f"{duration_seconds} seconds"
+            end_at_dt = now + timedelta(seconds=duration_seconds)
+        elif "durationInDays" in competition:
+            duration_days = competition["durationInDays"]
+            duration_desc = f"{duration_days} days"
+            end_at_dt = now + timedelta(days=duration_days)
+        else:
+            duration_desc = "10 seconds"
+            end_at_dt = now + timedelta(seconds=10)
+
+        end_at_ts = int(end_at_dt.timestamp())
+
+        competition_input = (
+            0,
+            competition["name"],
+            competition["category"],
+            competition["description"],
+            competition["requirements"],
+            akun.address,
+            end_at_ts,
+            competition["certificateCID"],
+            competition.get("guideBookCID", ""),
+        )
+
+        winners_input = []
+        for w in winners_data:
+            prize_amount_wei = int(w["prizeAmount"] * 10**18)
+            winners_input.append((
+                0,
+                0,
+                w["title"],
+                w["prizeToken"],
+                prize_amount_wei,
+                w["certificateCID"],
+            ))
+
+        print(f"\n{'='*50}")
+        print("Competition Details")
+        print(f"{'='*50}")
+        print(f"Name        : {competition['name']}")
+        print(f"Category    : {competition['category']}")
+        print(f"Description : {competition['description']}")
+        print(f"Requirements: {competition['requirements']}")
+        print(f"Duration    : {duration_desc}")
+        print(f"End At      : {end_at_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} ({end_at_ts})")
+        print(f"Certificate : ipfs://{competition['certificateCID']}")
+        if competition.get("guideBookCID"):
+            print(f"Guidebook   : ipfs://{competition['guideBookCID']}")
+
+        print(f"\n{'='*50}")
+        print(f"Winners ({len(winners_data)} total)")
+        print(f"{'='*50}")
+        for i, w in enumerate(winners_data):
+            prize_amount_wei = int(w["prizeAmount"] * 10**18)
+            print(f"  [{i}] {w['title']}")
+            print(f"    Prize Token : {'Native Token' if w['prizeToken'] == NATIVE_TOKEN else w['prizeToken']}")
+            print(f"    Prize Amount: {w['prizeAmount']} ({prize_amount_wei} wei)")
+            print(f"    Certificate : ipfs://{w['certificateCID']}")
+
+        print("\nCreating competition...")
+
+        tx_kwargs = {"sender": akun}
+        if treasury_fee > 0 and treasury_token == NATIVE_TOKEN:
+            tx_kwargs["value"] = treasury_fee
+
+        tx = contract.createCompetition(
+            competition_input,
+            winners_input,
+            treasury_token,
+            platform_fee_id,
+            **tx_kwargs,
+        )
+
+        print(f"\nTX Hash        : {tx.txn_hash}")
+        print("Create success!")
+

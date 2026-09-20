@@ -1,0 +1,16 @@
+ape run accounts generate_account --network bot_chain:bot_chain_test_net:node
+ape run accounts check_balance user --network bot_chain:bot_chain_test_net:node
+ape run deploy_contract organization --network bot_chain:bot_chain_test_net:node
+ape run set_signer_address organization 0xbAAE68a803F6399aB18E7c59a6A41e7aF437BD82 --network bot_chain:bot_chain_test_net:node
+ape run listing_token_prize add_listing_token_prize organization 0x0000000000000000000000000000000000000000 --network bot_chain:bot_chain_test_net:node
+ape run competitions create_competition organization scripts/competitions/example_competition.json --network bot_chain:bot_chain_test_net:node
+ape run treasury_platform get_balance organization --network bot_chain:bot_chain_test_net:node
+ape run competitions get_competition organization 1 --network bot_chain:bot_chain_test_net:node
+ape run competitions get_winners organization 1 --network bot_chain:bot_chain_test_net:node
+ape run competitions is_competition_ended organization 1 --network bot_chain:bot_chain_test_net:node
+ape run competitions set_winner organization 1 0xA3E71d38658d4bf24745c3c3Dbf824B2ae2606ed 1 --network bot_chain:bot_chain_test_net:node
+ape run competitions get_participant_winners organization 1 --network bot_chain:bot_chain_test_net:node
+ape run competitions claim_certificate_participant user 1 --network bot_chain:bot_chain_test_net:node
+ape run competitions claim_certificate_participant_winner user 1 --network bot_chain:bot_chain_test_net:node
+
+
