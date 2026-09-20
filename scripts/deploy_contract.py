@@ -36,8 +36,9 @@ def update_env(certificate_competition_address, competition_address, treasury_ad
 @click.command()
 @click.argument("account_name")
 @click.option("--signer", "signer_address", default=None, help="Signer address (default: PUBLIC_KEY_SIGNER from .env or account_name address)")
+@click.option("--auto-listing/--no-auto-listing", default=False, help="Auto listing native token and set default fee (default: no)")
 @click.option("--network", help="Network specifier")
-def cli(account_name, signer_address, network):
+def cli(account_name, signer_address, auto_listing, network):
     with networks.parse_network_choice(network) as provider:
         print(f"Active Network: {provider.network.name}")
         try:
@@ -73,13 +74,16 @@ def cli(account_name, signer_address, network):
         listing_token_prize_address = competition_contract.listingTokenPrizeContract()
         fee_manager_address = competition_contract.feeManagerContract()
 
-        print("\nAdding native token to ListingTokenPrize...")
-        listing_token_contract = project.ListingTokenPrizeContract.at(listing_token_prize_address)
-        listing_token_contract.addListingTokenPrize(NATIVE_TOKEN, sender=akun)
+        if auto_listing:
+            print("\nAdding native token to ListingTokenPrize...")
+            listing_token_contract = project.ListingTokenPrizeContract.at(listing_token_prize_address)
+            listing_token_contract.addListingTokenPrize(NATIVE_TOKEN, sender=akun)
 
-        print("Setting default platform fee (ID #1) on FeeManager...")
-        fee_manager_contract_inst = project.FeeManager.at(fee_manager_address)
-        fee_manager_contract_inst.setFees(0, "Free Tier", "Default free tier fee", sender=akun)
+            print("Setting default platform fee (ID #1) on FeeManager...")
+            fee_manager_contract_inst = project.FeeManager.at(fee_manager_address)
+            fee_manager_contract_inst.setFees(0, "Free Tier", "Default free tier fee", sender=akun)
+        else:
+            print("\nSkipping auto listing and default fee setup (use --auto-listing to enable)")
 
         print(f"\nCertificateCompetition      : {certificate_competition_contract.address}")
         print(f"SignerManager               : {signer_manager_address}")
