@@ -77,6 +77,7 @@ def cli(account_name, input_json, contract_address, network):
         print(f"Treasury Fee  : {treasury_fee / 10**18} ({treasury_fee} wei)")
 
         now = datetime.now(timezone.utc)
+        now_ts = int(now.timestamp())
         if "durationInSeconds" in competition:
             duration_seconds = competition["durationInSeconds"]
             duration_desc = f"{duration_seconds} seconds"
@@ -91,6 +92,31 @@ def cli(account_name, input_json, contract_address, network):
 
         end_at_ts = int(end_at_dt.timestamp())
 
+        if "schedule" in competition and isinstance(competition["schedule"], dict):
+            sched = competition["schedule"]
+            reg_window = sched.get("registrationWindow", now_ts) or now_ts
+            comp_window = sched.get("competitionWindow", now_ts) or now_ts
+            sub_deadline = sched.get("submissionDeadline", end_at_ts) or end_at_ts
+            judging = sched.get("judgingReview", end_at_ts) or end_at_ts
+            announcement = sched.get("resultAnnouncement", end_at_ts) or end_at_ts
+            prize_claim = sched.get("prizeCertificateClaim", end_at_ts) or end_at_ts
+        else:
+            reg_window = now_ts
+            comp_window = now_ts
+            sub_deadline = end_at_ts
+            judging = end_at_ts
+            announcement = end_at_ts
+            prize_claim = end_at_ts
+
+        schedule_tuple = (
+            reg_window,
+            comp_window,
+            sub_deadline,
+            judging,
+            announcement,
+            prize_claim,
+        )
+
         competition_input = (
             0,
             competition["name"],
@@ -98,7 +124,7 @@ def cli(account_name, input_json, contract_address, network):
             competition["description"],
             competition["requirements"],
             akun.address,
-            end_at_ts,
+            schedule_tuple,
             competition["certificateCID"],
             competition.get("guideBookCID", ""),
         )
@@ -115,6 +141,8 @@ def cli(account_name, input_json, contract_address, network):
                 w["certificateCID"],
             ))
 
+        claim_dt = datetime.fromtimestamp(prize_claim, tz=timezone.utc)
+
         print(f"\n{'='*50}")
         print("Competition Details")
         print(f"{'='*50}")
@@ -123,7 +151,13 @@ def cli(account_name, input_json, contract_address, network):
         print(f"Description : {competition['description']}")
         print(f"Requirements: {competition['requirements']}")
         print(f"Duration    : {duration_desc}")
-        print(f"End At      : {end_at_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} ({end_at_ts})")
+        print(f"Schedule    :")
+        print(f"  Registration Window    : {reg_window}")
+        print(f"  Competition Window     : {comp_window}")
+        print(f"  Submission Deadline    : {sub_deadline}")
+        print(f"  Judging Review         : {judging}")
+        print(f"  Result Announcement    : {announcement}")
+        print(f"  Prize Certificate Claim: {claim_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} ({prize_claim})")
         print(f"Certificate : ipfs://{competition['certificateCID']}")
         if competition.get("guideBookCID"):
             print(f"Guidebook   : ipfs://{competition['guideBookCID']}")

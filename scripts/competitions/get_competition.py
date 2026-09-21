@@ -45,7 +45,9 @@ def cli(account_name, competition_id, contract_address, network):
             print(f"Error: Competition ID {competition_id} does not exist.")
             return
 
-        end_at_dt = datetime.fromtimestamp(comp.endAt, tz=timezone.utc)
+        sched = comp.schedule
+        claim_ts = sched.prizeCertificateClaim if hasattr(sched, "prizeCertificateClaim") else sched[5]
+        end_at_dt = datetime.fromtimestamp(claim_ts, tz=timezone.utc)
         end_at_str = end_at_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
 
         print(f"\n{'='*50}")
@@ -56,7 +58,13 @@ def cli(account_name, competition_id, contract_address, network):
         print(f"Description : {comp.description}")
         print(f"Requirements: {comp.requirements}")
         print(f"Organization: {comp.organization}")
-        print(f"End At      : {end_at_str} ({comp.endAt})")
+        print(f"Schedule    :")
+        print(f"  Registration Window    : {sched.registrationWindow if hasattr(sched, 'registrationWindow') else sched[0]}")
+        print(f"  Competition Window     : {sched.competitionWindow if hasattr(sched, 'competitionWindow') else sched[1]}")
+        print(f"  Submission Deadline    : {sched.submissionDeadline if hasattr(sched, 'submissionDeadline') else sched[2]}")
+        print(f"  Judging Review         : {sched.judgingReview if hasattr(sched, 'judgingReview') else sched[3]}")
+        print(f"  Result Announcement    : {sched.resultAnnouncement if hasattr(sched, 'resultAnnouncement') else sched[4]}")
+        print(f"  Prize Certificate Claim: {end_at_str} ({claim_ts})")
         print(f"Certificate : ipfs://{comp.certificateCID}")
 
         print(f"\n{'='*50}")
