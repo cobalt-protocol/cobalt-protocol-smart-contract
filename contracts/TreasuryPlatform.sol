@@ -11,10 +11,7 @@ contract TreasuryPlatform is Ownable {
         uint256 amount
     );
 
-    event NativeReceived(
-        address indexed sender,
-        uint256 amount
-    );
+    event NativeReceived(address indexed sender, uint256 amount);
 
     constructor(address initialOwner) Ownable(initialOwner) {}
 
@@ -22,6 +19,22 @@ contract TreasuryPlatform is Ownable {
         address _tokenAddress,
         uint256 amount
     ) external payable {
+        _addTreasuryFrom(msg.sender, _tokenAddress, amount);
+    }
+
+    function addTreasuryFrom(
+        address sender,
+        address _tokenAddress,
+        uint256 amount
+    ) external payable {
+        _addTreasuryFrom(sender, _tokenAddress, amount);
+    }
+
+    function _addTreasuryFrom(
+        address sender,
+        address _tokenAddress,
+        uint256 amount
+    ) internal {
         require(amount > 0, "Amount must be greater than 0");
 
         if (_tokenAddress == address(0)) {
@@ -33,7 +46,7 @@ contract TreasuryPlatform is Ownable {
             require(msg.value == 0, "Do not send native token");
 
             bool success = IERC20(_tokenAddress).transferFrom(
-                msg.sender,
+                sender,
                 owner(),
                 amount
             );
@@ -41,7 +54,7 @@ contract TreasuryPlatform is Ownable {
             require(success, "Transfer failed");
         }
 
-        emit TreasuryAdded(_tokenAddress, msg.sender, amount);
+        emit TreasuryAdded(_tokenAddress, sender, amount);
     }
 
     receive() external payable {
@@ -51,3 +64,4 @@ contract TreasuryPlatform is Ownable {
         emit NativeReceived(msg.sender, msg.value);
     }
 }
+

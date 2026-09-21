@@ -1,16 +1,99 @@
-ape run accounts generate_account --network bot_chain:bot_chain_test_net:node
-ape run accounts check_balance user --network bot_chain:bot_chain_test_net:node
-ape run deploy_contract organization --network bot_chain:bot_chain_test_net:node
-ape run set_signer_address organization 0xbAAE68a803F6399aB18E7c59a6A41e7aF437BD82 --network bot_chain:bot_chain_test_net:node
+# ==============================================================================
+# Cobalt Protocol - Smart Contract Helper Commands (Parameter Templates)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. ACCOUNTS MANAGEMENT
+# ------------------------------------------------------------------------------
+# Generate a new EVM account
+ape run accounts generate_account --network <NETWORK>
+
+# Check native account balance
+ape run accounts check_balance <ACCOUNT_NAME> --network <NETWORK>
+
+
+# ------------------------------------------------------------------------------
+# 2. DEPLOYMENT & SIGNER SETUP
+# ------------------------------------------------------------------------------
+# Deploy all smart contracts (Platform, Signer, Organization)
+ape run deploy_contract <PLATFORM_ACCOUNT_NAME> <SIGNER_ACCOUNT_NAME> <ORGANIZATION_ACCOUNT_NAME> --auto-listing --network <NETWORK>
+ape run deploy_contract <PLATFORM_ACCOUNT_NAME> <SIGNER_ACCOUNT_NAME> <ORGANIZATION_ACCOUNT_NAME> --no-auto-listing --network <NETWORK>
+
+# Update Signer Address (target: 'mint', 'cert', or 'both')
+ape run set_signer_address <ACCOUNT_NAME> <NEW_SIGNER_ADDRESS> --target <TARGET> --network <NETWORK>
+
+
+# ------------------------------------------------------------------------------
+# 3. FEE MANAGER (PriceCompetitionManager)
+# ------------------------------------------------------------------------------
+# Set platform fee option (native token by default)
+ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --network <NETWORK>
+
+# Set platform fee option with custom ERC20 token
+ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --token <TOKEN_ADDRESS> --title <TITLE> --description <DESCRIPTION> --network <NETWORK>
+
+# Get platform fee option details by fee ID
+ape run fee_manager get_fees <ACCOUNT_NAME> --fee-id <FEE_ID> --network <NETWORK>
+
+
+# ------------------------------------------------------------------------------
+# 4. LISTING TOKEN PRIZE
+# ------------------------------------------------------------------------------
+# Add allowed token prize (Native Token: 0x0000000000000000000000000000000000000000 or ERC20 address)
+ape run listing_token_prize add_listing_token_prize <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
 ape run listing_token_prize add_listing_token_prize organization 0x0000000000000000000000000000000000000000 --network bot_chain:bot_chain_test_net:node
+
+
+# ------------------------------------------------------------------------------
+# 5. TREASURY PLATFORM
+# ------------------------------------------------------------------------------
+# Get treasury owner balance (default: native token)
+ape run treasury_platform get_balance <ACCOUNT_NAME> --network <NETWORK>
+
+# Get treasury owner ERC20 token balance
+ape run treasury_platform get_balance <ACCOUNT_NAME> --token <TOKEN_ADDRESS> --network <NETWORK>
+
+
+# ------------------------------------------------------------------------------
+# 6. COMPETITIONS MANAGEMENT
+# ------------------------------------------------------------------------------
+# Create a new competition from JSON config
+ape run competitions create_competition <ACCOUNT_NAME> <INPUT_JSON_PATH> --network <NETWORK>
 ape run competitions create_competition organization scripts/competitions/example_competition.json --network bot_chain:bot_chain_test_net:node
-ape run treasury_platform get_balance organization --network bot_chain:bot_chain_test_net:node
-ape run competitions get_competition organization 1 --network bot_chain:bot_chain_test_net:node
-ape run competitions get_winners organization 1 --network bot_chain:bot_chain_test_net:node
-ape run competitions is_competition_ended organization 1 --network bot_chain:bot_chain_test_net:node
-ape run competitions set_winner organization 1 0xA3E71d38658d4bf24745c3c3Dbf824B2ae2606ed 1 --network bot_chain:bot_chain_test_net:node
-ape run competitions get_participant_winners organization 1 --network bot_chain:bot_chain_test_net:node
-ape run competitions claim_certificate_participant user 1 --network bot_chain:bot_chain_test_net:node
-ape run competitions claim_certificate_participant_winner user 1 --network bot_chain:bot_chain_test_net:node
+
+# Get competition details by competition ID
+ape run competitions get_competition <ACCOUNT_NAME> <COMPETITION_ID> --network <NETWORK>
+
+# Check if competition has ended
+ape run competitions is_competition_ended <ACCOUNT_NAME> <COMPETITION_ID> --network <NETWORK>
+
+# Get competition winners by competition ID
+ape run competitions get_winners <ACCOUNT_NAME> <COMPETITION_ID> --network <NETWORK>
+
+# Get single winner details by winner ID
+ape run competitions get_winner <ACCOUNT_NAME> <WINNER_ID> --network <NETWORK>
+
+# Set competition winner & payout prize
+ape run competitions set_winner <ACCOUNT_NAME> <WINNER_ID> <PARTICIPANT_ADDRESS> <COMPETITION_ID> --network <NETWORK>
+
+# Get participant winners assigned to a winner ID
+ape run competitions get_participant_winners <ACCOUNT_NAME> <WINNER_ID> --network <NETWORK>
+
+
+# ------------------------------------------------------------------------------
+# 7. CERTIFICATES & MINTING
+# ------------------------------------------------------------------------------
+# Claim general participant certificate
+ape run competitions claim_certificate_participant <ACCOUNT_NAME> <COMPETITION_ID> --network <NETWORK>
+ape run competitions claim_certificate_participant organization 1 --network bot_chain:bot_chain_test_net:node
+
+# Claim winner participant certificate
+ape run competitions claim_certificate_participant_winner <ACCOUNT_NAME> <WINNER_ID> --network <NETWORK>
+
+# View certificate participant entry details from CertificateManager
+ape run competitions get_certificate_participant <ACCOUNT_NAME> <CERTIFICATE_ID> --network <NETWORK>
+
+# View certificate participant winner entry details from CertificateManager
+ape run competitions get_certificate_participant_winner <ACCOUNT_NAME> <CERTIFICATE_ID> --network <NETWORK>
 
 

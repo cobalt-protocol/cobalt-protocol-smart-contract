@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone, timedelta
 
 import click
-from ape import accounts, networks, project
+from ape import accounts, networks, project, Contract
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -39,24 +39,24 @@ def cli(account_name, input_json, contract_address, network):
         contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
 
-        fee_manager_address = contract.feeManagerContract()
-        fee_manager = project.FeeManager.at(fee_manager_address)
-        print(f"Fee Manager : {fee_manager.address}")
+        price_competition_manager_address = contract.priceCompetitionManagerContract()
+        price_competition_manager = project.PriceCompetitionManager.at(price_competition_manager_address)
+        print(f"Price Competition Manager : {price_competition_manager.address}")
 
         with open(input_json, "r") as f:
             data = json.load(f)
 
         competition = data["competition"]
         winners_data = data["winners"]
-        treasury_token = competition.get("treasuryToken", NATIVE_TOKEN)
         platform_fee_id = competition.get("platformFeeId", 1)
 
-        fee_data = fee_manager.getFees(platform_fee_id)
+        fee_data = price_competition_manager.getPriceCompetitionFee(platform_fee_id)
         if fee_data.id == 0:
-            print(f"Error: Fee option ID {platform_fee_id} does not exist in FeeManager.")
+            print(f"Error: Fee option ID {platform_fee_id} does not exist in PriceCompetitionManager.")
             return
 
         treasury_fee = fee_data.treasuryFee
+        fee_token = fee_data.tokenAddress
 
         if not winners_data:
             print("Error: Competition must have at least one winner.")
@@ -68,10 +68,10 @@ def cli(account_name, input_json, contract_address, network):
                 print(f"Error: Winner [{i}] prizeToken ({w['prizeToken']}) does not match first winner prizeToken ({first_prize_token}). All winners in a competition must use the same prize token.")
                 return
 
-        if treasury_token == NATIVE_TOKEN:
-            print("Treasury Token: Native Token")
+        if fee_token == NATIVE_TOKEN:
+            print("Fee Token     : Native Token")
         else:
-            print(f"Treasury Token: {treasury_token}")
+            print(f"Fee Token     : {fee_token}")
 
         print(f"Fee Option ID : {platform_fee_id} ({fee_data.title} - {fee_data.description})")
         print(f"Treasury Fee  : {treasury_fee / 10**18} ({treasury_fee} wei)")
@@ -141,13 +141,20 @@ def cli(account_name, input_json, contract_address, network):
         print("\nCreating competition...")
 
         tx_kwargs = {"sender": akun}
-        if treasury_fee > 0 and treasury_token == NATIVE_TOKEN:
+        if treasury_fee > 0 and fee_token == NATIVE_TOKEN:
             tx_kwargs["value"] = treasury_fee
+
+        if treasury_fee > 0 and fee_token != NATIVE_TOKEN:
+            treasury_address = contract.treasuryPlatformContract()
+            erc20 = Contract(fee_token)
+            allowance = erc20.allowance(akun.address, treasury_address)
+            if allowance < treasury_fee:
+                print(f"\nApproving TreasuryPlatform to spend {treasury_fee} wei of fee token...")
+                erc20.approve(treasury_address, treasury_fee, sender=akun)
 
         tx = contract.createCompetition(
             competition_input,
             winners_input,
-            treasury_token,
             platform_fee_id,
             **tx_kwargs,
         )

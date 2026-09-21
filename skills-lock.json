@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "blockchain-web3": {
+      "source": "travisjneuman/.claude",
+      "sourceType": "github",
+      "skillPath": "skills/blockchain-web3/SKILL.md",
+      "computedHash": "f9868ffcde17efe6d9c579459046b38dcd5fed7fec616f0e65ae8187ecbd258e"
+    },
+    "solidity": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "solidity/SKILL.md",
+      "computedHash": "4e57804c047801d5ee2ccd2295ccb723eb2c163ad4738d7c96c89eb298adf4f5"
+    }
+  }
+}

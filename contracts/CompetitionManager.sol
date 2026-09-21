@@ -6,14 +6,14 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./TreasuryPlatform.sol";
 import "./ListingTokenPrize.sol";
-import "./FeeManager.sol";
+import "./PriceCompetitionManager.sol";
 
 contract CompetitionManager is Ownable {
     TreasuryPlatform public treasuryPlatformContract;
 
     ListingTokenPrizeContract public listingTokenPrizeContract;
 
-    FeeManager public feeManagerContract;
+    PriceCompetitionManager public priceCompetitionManagerContract;
 
     struct Competitions {
         uint256 id;
@@ -67,6 +67,13 @@ contract CompetitionManager is Ownable {
         uint256 participantWinnerId
     );
 
+    event CompetitionFeePaid(
+        uint256 indexed competitionId,
+        address indexed payer,
+        address indexed tokenAddress,
+        uint256 amount
+    );
+
     modifier onlyOrganization(
         address _address_organization,
         uint256 _competition_id
@@ -98,21 +105,38 @@ contract CompetitionManager is Ownable {
         _;
     }
 
-    constructor(address initialOwner) Ownable(initialOwner) {
-        feeManagerContract = new FeeManager(initialOwner);
-        treasuryPlatformContract = new TreasuryPlatform(initialOwner);
-        listingTokenPrizeContract = new ListingTokenPrizeContract(initialOwner);
+    constructor(
+        address initialOwner,
+        address _priceCompetitionManagerAddress,
+        address payable _treasuryPlatformAddress,
+        address _listingTokenPrizeAddress
+    ) Ownable(initialOwner) {
+        priceCompetitionManagerContract = PriceCompetitionManager(
+            _priceCompetitionManagerAddress
+        );
+        treasuryPlatformContract = TreasuryPlatform(_treasuryPlatformAddress);
+        listingTokenPrizeContract = ListingTokenPrizeContract(
+            _listingTokenPrizeAddress
+        );
     }
 
     function createCompetition(
         Competitions calldata _competition,
         Winners[] calldata _winners,
-        address _treasuryToken,
-        uint256 _platformFeeId
+        uint256 _priceCompetitionFeeId
     ) external payable {
         require(_competition.endAt > block.timestamp, "Invalid end time");
 
         require(_winners.length > 0, "Must have at least one winner");
+
+        PriceCompetitionManager.PriceCompetitionFee
+            memory platformFee = priceCompetitionManagerContract
+                .getPriceCompetitionFee(_priceCompetitionFeeId);
+
+        require(platformFee.id != 0, "Fee option does not exist");
+
+        uint256 fee = platformFee.treasuryFee;
+        address feeToken = platformFee.tokenAddress;
 
         address firstPrizeToken = _winners[0].prizeToken;
 
@@ -127,8 +151,11 @@ contract CompetitionManager is Ownable {
                 "Prize token must be the same for all winners"
             );
 
-            (, address listedTokenAddress, bool isPrizeTokenActive) = listingTokenPrizeContract
-                .listingToken(_winners[i].prizeToken);
+            (
+                ,
+                address listedTokenAddress,
+                bool isPrizeTokenActive
+            ) = listingTokenPrizeContract.listingToken(_winners[i].prizeToken);
 
             require(
                 listedTokenAddress == _winners[i].prizeToken,
@@ -138,32 +165,31 @@ contract CompetitionManager is Ownable {
             require(isPrizeTokenActive, "Prize token is not active");
         }
 
-        FeeManager.PlatformFee memory platformFee = feeManagerContract.getFees(
-            _platformFeeId
-        );
-
-        require(platformFee.id != 0, "Fee option does not exist");
-
-        uint256 fee = platformFee.treasuryFee;
+        competitionId++;
 
         if (fee > 0) {
-            (, address listedTreasuryToken, bool isTreasuryTokenActive) = listingTokenPrizeContract
-                .listingToken(_treasuryToken);
+            if (feeToken == address(0)) {
+                require(msg.value == fee, "Incorrect native fee");
 
-            require(
-                listedTreasuryToken == _treasuryToken,
-                "Treasury token is not listed"
-            );
+                treasuryPlatformContract.addTreasuryFrom{value: fee}(
+                    msg.sender,
+                    address(0),
+                    fee
+                );
+            } else {
+                require(msg.value == 0, "Do not send native token");
 
-            require(isTreasuryTokenActive, "Treasury token is not active");
+                treasuryPlatformContract.addTreasuryFrom(
+                    msg.sender,
+                    feeToken,
+                    fee
+                );
+            }
 
-            treasuryPlatformContract.addTreasury{value: msg.value}(
-                _treasuryToken,
-                fee
-            );
+            emit CompetitionFeePaid(competitionId, msg.sender, feeToken, fee);
+        } else {
+            require(msg.value == 0, "Do not send native token");
         }
-
-        competitionId++;
 
         competitions[competitionId] = Competitions({
             id: competitionId,

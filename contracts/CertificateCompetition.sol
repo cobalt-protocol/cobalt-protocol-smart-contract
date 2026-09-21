@@ -38,18 +38,23 @@ contract CertificateCompetition is ERC721, ERC721URIStorage, Ownable {
 
     constructor(
         address initialOwner,
-        address _signerAddress
+        address _signerManagerAddress,
+        address _signerManagerCertificateAddress,
+        address _competitionManagerAddress,
+        address _certificateManagerAddress
     ) ERC721("Certificate Competition", "CC") Ownable(initialOwner) {
-        signerManagerContract = new SignerManager(initialOwner, _signerAddress);
+        signerManagerContract = SignerManager(_signerManagerAddress);
 
-        signerManagerCertificateContract = new SignerManager(initialOwner, _signerAddress);
+        signerManagerCertificateContract = SignerManager(
+            _signerManagerCertificateAddress
+        );
 
-        competitionManagerContract = new CompetitionManager(initialOwner);
+        competitionManagerContract = CompetitionManager(
+            _competitionManagerAddress
+        );
 
-        certificateManagerContract = new CertificateManager(
-            address(this),
-            address(competitionManagerContract),
-            address(signerManagerCertificateContract)
+        certificateManagerContract = CertificateManager(
+            _certificateManagerAddress
         );
     }
 
