@@ -64,15 +64,11 @@ def cli(account_name, winner_id, participant_address, competition_id, contract_a
 
         print("\nSetting winner...")
 
-        tx_kwargs = {"sender": akun}
-        if w.prizeToken == NATIVE_TOKEN:
-            tx_kwargs["value"] = w.prizeAmount
-
         tx = contract.setWinner(
             winner_id,
             participant_address,
             competition_id,
-            **tx_kwargs,
+            sender=akun,
         )
 
         print(f"\nTX Hash        : {tx.txn_hash}")

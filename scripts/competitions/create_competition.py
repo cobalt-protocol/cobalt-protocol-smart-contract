@@ -174,9 +174,16 @@ def cli(account_name, input_json, contract_address, network):
 
         print("\nCreating competition...")
 
-        tx_kwargs = {"sender": akun}
+        total_prize_amount = sum(int(w["prizeAmount"] * 10**18) for w in winners_data)
+        required_native = 0
         if treasury_fee > 0 and fee_token == NATIVE_TOKEN:
-            tx_kwargs["value"] = treasury_fee
+            required_native += treasury_fee
+        if first_prize_token == NATIVE_TOKEN:
+            required_native += total_prize_amount
+
+        tx_kwargs = {"sender": akun}
+        if required_native > 0:
+            tx_kwargs["value"] = required_native
 
         if treasury_fee > 0 and fee_token != NATIVE_TOKEN:
             treasury_address = contract.treasuryPlatformContract()
@@ -185,6 +192,14 @@ def cli(account_name, input_json, contract_address, network):
             if allowance < treasury_fee:
                 print(f"\nApproving TreasuryPlatform to spend {treasury_fee} wei of fee token...")
                 erc20.approve(treasury_address, treasury_fee, sender=akun)
+
+        if total_prize_amount > 0 and first_prize_token != NATIVE_TOKEN:
+            treasury_prize_address = contract.treasuryPrizeContract()
+            erc20_prize = Contract(first_prize_token)
+            allowance_prize = erc20_prize.allowance(akun.address, treasury_prize_address)
+            if allowance_prize < total_prize_amount:
+                print(f"\nApproving TreasuryPrize to spend {total_prize_amount} wei of prize token...")
+                erc20_prize.approve(treasury_prize_address, total_prize_amount, sender=akun)
 
         tx = contract.createCompetition(
             competition_input,

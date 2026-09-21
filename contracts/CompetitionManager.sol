@@ -6,11 +6,13 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./TreasuryPlatform.sol";
 import "./ListingTokenPrize.sol";
 import "./PriceCompetitionManager.sol";
+import "./TreasuryPrize.sol";
 
 contract CompetitionManager is Ownable {
     TreasuryPlatform public treasuryPlatformContract;
     ListingTokenPrizeContract public listingTokenPrizeContract;
     PriceCompetitionManager public priceCompetitionManagerContract;
+    TreasuryPrize public treasuryPrizeContract;
 
     struct CompetitionSchedule {
         uint256 registrationWindow;
@@ -75,15 +77,6 @@ contract CompetitionManager is Ownable {
         string title
     );
 
-    event PrizeDistributed(
-        uint256 indexed competitionId,
-        uint256 indexed winnerId,
-        address indexed participant,
-        string title,
-        address prizeToken,
-        uint256 amount
-    );
-
     event CompetitionFeePaid(
         uint256 indexed competitionId,
         address indexed payer,
@@ -123,7 +116,8 @@ contract CompetitionManager is Ownable {
         address initialOwner,
         address _priceCompetitionManagerAddress,
         address payable _treasuryPlatformAddress,
-        address _listingTokenPrizeAddress
+        address _listingTokenPrizeAddress,
+        address payable _treasuryPrizeAddress
     ) Ownable(initialOwner) {
         priceCompetitionManagerContract = PriceCompetitionManager(
             _priceCompetitionManagerAddress
@@ -132,6 +126,7 @@ contract CompetitionManager is Ownable {
         listingTokenPrizeContract = ListingTokenPrizeContract(
             _listingTokenPrizeAddress
         );
+        treasuryPrizeContract = TreasuryPrize(_treasuryPrizeAddress);
     }
 
     function createCompetition(
@@ -238,13 +233,20 @@ contract CompetitionManager is Ownable {
             emit CompetitionFeePaid(competitionId, msg.sender, feeToken, fee);
         }
 
-        if (totalPrizeAmount > 0 && firstPrizeToken != address(0)) {
-            bool prizeSuccess = IERC20(firstPrizeToken).transferFrom(
-                msg.sender,
-                address(this),
-                totalPrizeAmount
+        if (totalPrizeAmount > 0) {
+            uint256 nativePrizeValue = firstPrizeToken == address(0)
+                ? totalPrizeAmount
+                : 0;
+            treasuryPrizeContract.addTreasury{value: nativePrizeValue}(
+                TreasuryPrize.TreasuryPrize({
+                    id: 0,
+                    competitionId: competitionId,
+                    organization: msg.sender,
+                    totalPrize: totalPrizeAmount,
+                    tokenAddress: firstPrizeToken
+                }),
+                msg.sender
             );
-            require(prizeSuccess, "Prize transfer failed");
         }
     }
 
@@ -262,11 +264,13 @@ contract CompetitionManager is Ownable {
         Winners memory winner_participant = winnerById[_winnerId];
 
         require(
-            competitionTotalPrize[_competition_id] >= winner_participant.prizeAmount,
+            competitionTotalPrize[_competition_id] >=
+                winner_participant.prizeAmount,
             "Insufficient competition prize balance"
         );
 
-        competitionTotalPrize[_competition_id] -= winner_participant.prizeAmount;
+        competitionTotalPrize[_competition_id] -= winner_participant
+            .prizeAmount;
 
         participantWinnerId++;
 
@@ -277,18 +281,13 @@ contract CompetitionManager is Ownable {
                 participant: _participant
             })
         );
-        if (winner_participant.prizeToken == address(0)) {
-            (bool success, ) = payable(_participant).call{
-                value: winner_participant.prizeAmount
-            }("");
-            require(success, "Transfer failed");
-        } else {
-            bool success = IERC20(winner_participant.prizeToken).transfer(
-                _participant,
-                winner_participant.prizeAmount
-            );
-            require(success, "Transfer failed");
-        }
+        treasuryPrizeContract.payout(
+            _competition_id,
+            payable(_participant),
+            winner_participant.prizeAmount,
+            winner_participant.prizeToken,
+            msg.sender
+        );
 
         emit WinnerSet(
             _winnerId,
@@ -296,15 +295,6 @@ contract CompetitionManager is Ownable {
             _competition_id,
             participantWinnerId,
             winner_participant.title
-        );
-
-        emit PrizeDistributed(
-            _competition_id,
-            _winnerId,
-            _participant,
-            winner_participant.title,
-            winner_participant.prizeToken,
-            winner_participant.prizeAmount
         );
     }
 
