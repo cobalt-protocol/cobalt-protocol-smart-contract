@@ -56,6 +56,7 @@ contract CompetitionManager is Ownable {
     mapping(uint256 => Winners[]) public winners;
     mapping(uint256 => Winners) public winnerById;
     mapping(uint256 => ParticipantWinner[]) public participantWinner;
+    mapping(uint256 => uint256) public competitionTotalPrize;
 
     event CompetitionCreated(
         uint256 indexed id,
@@ -208,6 +209,8 @@ contract CompetitionManager is Ownable {
             winnerById[winnerId] = newWinner;
         }
 
+        competitionTotalPrize[competitionId] = totalPrizeAmount;
+
         uint256 requiredNative = 0;
         if (fee > 0 && feeToken == address(0)) {
             requiredNative += fee;
@@ -250,9 +253,22 @@ contract CompetitionManager is Ownable {
         address _participant,
         uint256 _competition_id
     ) external onlyOrganization(msg.sender, _competition_id) {
-        participantWinnerId++;
-
         require(winnerById[_winnerId].winnerId != 0, "Winner does not exist");
+        require(
+            winnerById[_winnerId].competitionId == _competition_id,
+            "Winner does not belong to this competition"
+        );
+
+        Winners memory winner_participant = winnerById[_winnerId];
+
+        require(
+            competitionTotalPrize[_competition_id] >= winner_participant.prizeAmount,
+            "Insufficient competition prize balance"
+        );
+
+        competitionTotalPrize[_competition_id] -= winner_participant.prizeAmount;
+
+        participantWinnerId++;
 
         participantWinner[_winnerId].push(
             ParticipantWinner({
@@ -261,8 +277,6 @@ contract CompetitionManager is Ownable {
                 participant: _participant
             })
         );
-
-        Winners memory winner_participant = winnerById[_winnerId];
         if (winner_participant.prizeToken == address(0)) {
             (bool success, ) = payable(_participant).call{
                 value: winner_participant.prizeAmount

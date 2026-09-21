@@ -2,24 +2,34 @@
 pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {TreasuryHelper} from "./helpers/TreasuryHelper.sol";
 
 contract TreasuryPlatform is Ownable {
-    event TreasuryAdded(
-        address indexed tokenAddress,
-        address indexed sender,
-        uint256 amount
-    );
-
     event NativeReceived(address indexed sender, uint256 amount);
 
+    event OwnerUpdated(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
+
     constructor(address initialOwner) Ownable(initialOwner) {}
+
+    function updateOwner(address newOwner) external onlyOwner {
+        address previousOwner = owner();
+        transferOwnership(newOwner);
+        emit OwnerUpdated(previousOwner, newOwner);
+    }
 
     function addTreasury(
         address _tokenAddress,
         uint256 amount
     ) external payable {
-        _addTreasuryFrom(msg.sender, _tokenAddress, amount);
+        TreasuryHelper._addTreasuryFrom(
+            owner(),
+            msg.sender,
+            _tokenAddress,
+            amount
+        );
     }
 
     function addTreasuryFrom(
@@ -27,34 +37,7 @@ contract TreasuryPlatform is Ownable {
         address _tokenAddress,
         uint256 amount
     ) external payable {
-        _addTreasuryFrom(sender, _tokenAddress, amount);
-    }
-
-    function _addTreasuryFrom(
-        address sender,
-        address _tokenAddress,
-        uint256 amount
-    ) internal {
-        require(amount > 0, "Amount must be greater than 0");
-
-        if (_tokenAddress == address(0)) {
-            require(msg.value == amount, "Incorrect native amount");
-
-            (bool success, ) = payable(owner()).call{value: amount}("");
-            require(success, "Transfer failed");
-        } else {
-            require(msg.value == 0, "Do not send native token");
-
-            bool success = IERC20(_tokenAddress).transferFrom(
-                sender,
-                owner(),
-                amount
-            );
-
-            require(success, "Transfer failed");
-        }
-
-        emit TreasuryAdded(_tokenAddress, sender, amount);
+        TreasuryHelper._addTreasuryFrom(owner(), sender, _tokenAddress, amount);
     }
 
     receive() external payable {
@@ -64,4 +47,3 @@ contract TreasuryPlatform is Ownable {
         emit NativeReceived(msg.sender, msg.value);
     }
 }
-
