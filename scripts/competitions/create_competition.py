@@ -129,9 +129,13 @@ def cli(account_name, input_json, contract_address, network):
             competition.get("guideBookCID", ""),
         )
 
+        def parse_prize_wei(val):
+            f_val = float(val)
+            return int(f_val * 10**18) if f_val < 10**9 else int(f_val)
+
         winners_input = []
         for w in winners_data:
-            prize_amount_wei = int(w["prizeAmount"] * 10**18)
+            prize_amount_wei = parse_prize_wei(w["prizeAmount"])
             winners_input.append((
                 0,
                 0,
@@ -166,15 +170,15 @@ def cli(account_name, input_json, contract_address, network):
         print(f"Winners ({len(winners_data)} total)")
         print(f"{'='*50}")
         for i, w in enumerate(winners_data):
-            prize_amount_wei = int(w["prizeAmount"] * 10**18)
+            prize_amount_wei = parse_prize_wei(w["prizeAmount"])
             print(f"  [{i}] {w['title']}")
             print(f"    Prize Token : {'Native Token' if w['prizeToken'] == NATIVE_TOKEN else w['prizeToken']}")
-            print(f"    Prize Amount: {w['prizeAmount']} ({prize_amount_wei} wei)")
+            print(f"    Prize Amount: {prize_amount_wei / 10**18} ({prize_amount_wei} wei)")
             print(f"    Certificate : ipfs://{w['certificateCID']}")
 
         print("\nCreating competition...")
 
-        total_prize_amount = sum(int(w["prizeAmount"] * 10**18) for w in winners_data)
+        total_prize_amount = sum(parse_prize_wei(w["prizeAmount"]) for w in winners_data)
         required_native = 0
         if treasury_fee > 0 and fee_token == NATIVE_TOKEN:
             required_native += treasury_fee

@@ -121,7 +121,7 @@ def cli(platform_account_name, signer_account_name, organization_account_name, s
             treasury_platform_contract.address,
             listing_token_prize_contract.address,
             treasury_prize_contract.address,
-            sender=account_org,
+            sender=account_platform,
         )
 
         print("Deploying CertificateManager...")
