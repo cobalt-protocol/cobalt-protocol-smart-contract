@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -7,13 +6,22 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./TreasuryPlatform.sol";
 import "./ListingTokenPrize.sol";
 import "./PriceCompetitionManager.sol";
+import "./TreasuryPrize.sol";
 
 contract CompetitionManager is Ownable {
     TreasuryPlatform public treasuryPlatformContract;
-
     ListingTokenPrizeContract public listingTokenPrizeContract;
-
     PriceCompetitionManager public priceCompetitionManagerContract;
+    TreasuryPrize public treasuryPrizeContract;
+
+    struct CompetitionSchedule {
+        uint256 registrationWindow;
+        uint256 competitionWindow;
+        uint256 submissionDeadline;
+        uint256 judgingReview;
+        uint256 resultAnnouncement;
+        uint256 prizeCertificateClaim;
+    }
 
     struct Competitions {
         uint256 id;
@@ -22,7 +30,7 @@ contract CompetitionManager is Ownable {
         string description;
         string requirements;
         address organization;
-        uint256 endAt;
+        CompetitionSchedule schedule;
         string certificateCID;
         string guideBookCID;
     }
@@ -50,13 +58,14 @@ contract CompetitionManager is Ownable {
     mapping(uint256 => Winners[]) public winners;
     mapping(uint256 => Winners) public winnerById;
     mapping(uint256 => ParticipantWinner[]) public participantWinner;
+    mapping(uint256 => uint256) public competitionTotalPrize;
 
     event CompetitionCreated(
         uint256 indexed id,
         address indexed organization,
         string name,
         string category,
-        uint256 endAt,
+        uint256 prizeCertificateClaim,
         string certificateCID
     );
 
@@ -64,7 +73,8 @@ contract CompetitionManager is Ownable {
         uint256 indexed winnerId,
         address indexed participant,
         uint256 indexed competitionId,
-        uint256 participantWinnerId
+        uint256 participantWinnerId,
+        string title
     );
 
     event CompetitionFeePaid(
@@ -82,12 +92,10 @@ contract CompetitionManager is Ownable {
             competitions[_competition_id].id != 0,
             "Competition does not exist"
         );
-
         require(
             competitions[_competition_id].organization == _address_organization,
             "Not organization"
         );
-
         _;
     }
 
@@ -96,12 +104,11 @@ contract CompetitionManager is Ownable {
             competitions[_competitionId].id != 0,
             "Competition does not exist"
         );
-
         require(
-            block.timestamp >= competitions[_competitionId].endAt,
+            block.timestamp >=
+                competitions[_competitionId].schedule.prizeCertificateClaim,
             "Competition is not ended"
         );
-
         _;
     }
 
@@ -109,7 +116,8 @@ contract CompetitionManager is Ownable {
         address initialOwner,
         address _priceCompetitionManagerAddress,
         address payable _treasuryPlatformAddress,
-        address _listingTokenPrizeAddress
+        address _listingTokenPrizeAddress,
+        address payable _treasuryPrizeAddress
     ) Ownable(initialOwner) {
         priceCompetitionManagerContract = PriceCompetitionManager(
             _priceCompetitionManagerAddress
@@ -118,6 +126,7 @@ contract CompetitionManager is Ownable {
         listingTokenPrizeContract = ListingTokenPrizeContract(
             _listingTokenPrizeAddress
         );
+        treasuryPrizeContract = TreasuryPrize(_treasuryPrizeAddress);
     }
 
     function createCompetition(
@@ -125,9 +134,26 @@ contract CompetitionManager is Ownable {
         Winners[] calldata _winners,
         uint256 _priceCompetitionFeeId
     ) external payable {
-        require(_competition.endAt > block.timestamp, "Invalid end time");
-
+        require(
+            _competition.schedule.prizeCertificateClaim > block.timestamp,
+            "Invalid end time"
+        );
         require(_winners.length > 0, "Must have at least one winner");
+
+        competitionId++;
+
+        competitions[competitionId] = _competition;
+        competitions[competitionId].id = competitionId;
+        competitions[competitionId].organization = msg.sender;
+
+        emit CompetitionCreated(
+            competitionId,
+            msg.sender,
+            _competition.name,
+            _competition.category,
+            _competition.schedule.prizeCertificateClaim,
+            _competition.certificateCID
+        );
 
         PriceCompetitionManager.PriceCompetitionFee
             memory platformFee = priceCompetitionManagerContract
@@ -137,7 +163,7 @@ contract CompetitionManager is Ownable {
 
         uint256 fee = platformFee.treasuryFee;
         address feeToken = platformFee.tokenAddress;
-
+        uint256 totalPrizeAmount = 0;
         address firstPrizeToken = _winners[0].prizeToken;
 
         for (uint256 i = 0; i < _winners.length; i++) {
@@ -145,7 +171,6 @@ contract CompetitionManager is Ownable {
                 _winners[i].prizeAmount > 0,
                 "Prize must be greater than 0"
             );
-
             require(
                 _winners[i].prizeToken == firstPrizeToken,
                 "Prize token must be the same for all winners"
@@ -161,51 +186,11 @@ contract CompetitionManager is Ownable {
                 listedTokenAddress == _winners[i].prizeToken,
                 "Prize token is not listed"
             );
-
             require(isPrizeTokenActive, "Prize token is not active");
-        }
 
-        competitionId++;
+            totalPrizeAmount += _winners[i].prizeAmount;
 
-        if (fee > 0) {
-            if (feeToken == address(0)) {
-                require(msg.value == fee, "Incorrect native fee");
-
-                treasuryPlatformContract.addTreasuryFrom{value: fee}(
-                    msg.sender,
-                    address(0),
-                    fee
-                );
-            } else {
-                require(msg.value == 0, "Do not send native token");
-
-                treasuryPlatformContract.addTreasuryFrom(
-                    msg.sender,
-                    feeToken,
-                    fee
-                );
-            }
-
-            emit CompetitionFeePaid(competitionId, msg.sender, feeToken, fee);
-        } else {
-            require(msg.value == 0, "Do not send native token");
-        }
-
-        competitions[competitionId] = Competitions({
-            id: competitionId,
-            name: _competition.name,
-            category: _competition.category,
-            description: _competition.description,
-            requirements: _competition.requirements,
-            organization: msg.sender,
-            endAt: _competition.endAt,
-            certificateCID: _competition.certificateCID,
-            guideBookCID: _competition.guideBookCID
-        });
-
-        for (uint256 i = 0; i < _winners.length; i++) {
             winnerId++;
-
             Winners memory newWinner = Winners({
                 competitionId: competitionId,
                 winnerId: winnerId,
@@ -216,28 +201,78 @@ contract CompetitionManager is Ownable {
             });
 
             winners[competitionId].push(newWinner);
-
             winnerById[winnerId] = newWinner;
         }
 
-        emit CompetitionCreated(
-            competitionId,
-            msg.sender,
-            _competition.name,
-            _competition.category,
-            _competition.endAt,
-            _competition.certificateCID
-        );
+        competitionTotalPrize[competitionId] = totalPrizeAmount;
+
+        uint256 requiredNative = 0;
+        if (fee > 0 && feeToken == address(0)) {
+            requiredNative += fee;
+        }
+        if (firstPrizeToken == address(0)) {
+            requiredNative += totalPrizeAmount;
+        }
+
+        require(msg.value == requiredNative, "Incorrect native amount");
+
+        if (fee > 0) {
+            if (feeToken == address(0)) {
+                treasuryPlatformContract.addTreasuryFrom{value: fee}(
+                    msg.sender,
+                    address(0),
+                    fee
+                );
+            } else {
+                treasuryPlatformContract.addTreasuryFrom(
+                    msg.sender,
+                    feeToken,
+                    fee
+                );
+            }
+            emit CompetitionFeePaid(competitionId, msg.sender, feeToken, fee);
+        }
+
+        if (totalPrizeAmount > 0) {
+            uint256 nativePrizeValue = firstPrizeToken == address(0)
+                ? totalPrizeAmount
+                : 0;
+            treasuryPrizeContract.addTreasury{value: nativePrizeValue}(
+                TreasuryPrize.TreasuryPrize({
+                    id: 0,
+                    competitionId: competitionId,
+                    organization: msg.sender,
+                    totalPrize: totalPrizeAmount,
+                    tokenAddress: firstPrizeToken
+                }),
+                msg.sender
+            );
+        }
     }
 
     function setWinner(
         uint256 _winnerId,
         address _participant,
         uint256 _competition_id
-    ) external payable onlyOrganization(msg.sender, _competition_id) {
-        participantWinnerId++;
-
+    ) external onlyOrganization(msg.sender, _competition_id) {
         require(winnerById[_winnerId].winnerId != 0, "Winner does not exist");
+        require(
+            winnerById[_winnerId].competitionId == _competition_id,
+            "Winner does not belong to this competition"
+        );
+
+        Winners memory winner_participant = winnerById[_winnerId];
+
+        require(
+            competitionTotalPrize[_competition_id] >=
+                winner_participant.prizeAmount,
+            "Insufficient competition prize balance"
+        );
+
+        competitionTotalPrize[_competition_id] -= winner_participant
+            .prizeAmount;
+
+        participantWinnerId++;
 
         participantWinner[_winnerId].push(
             ParticipantWinner({
@@ -246,33 +281,20 @@ contract CompetitionManager is Ownable {
                 participant: _participant
             })
         );
-
-        Winners memory winner_participant = winnerById[_winnerId];
-        if (winner_participant.prizeToken == address(0)) {
-            require(
-                msg.value == winner_participant.prizeAmount,
-                "Incorrect native amount"
-            );
-
-            (bool success, ) = payable(_participant).call{
-                value: winner_participant.prizeAmount
-            }("");
-            require(success, "Transfer failed");
-        } else {
-            require(msg.value == 0, "Do not send native token");
-
-            bool success = IERC20(winner_participant.prizeToken).transfer(
-                _participant,
-                winner_participant.prizeAmount
-            );
-            require(success, "Transfer failed");
-        }
+        treasuryPrizeContract.payout(
+            _competition_id,
+            payable(_participant),
+            winner_participant.prizeAmount,
+            winner_participant.prizeToken,
+            msg.sender
+        );
 
         emit WinnerSet(
             _winnerId,
             _participant,
             _competition_id,
-            participantWinnerId
+            participantWinnerId,
+            winner_participant.title
         );
     }
 
@@ -292,7 +314,6 @@ contract CompetitionManager is Ownable {
         uint256 _winnerId
     ) external view returns (Winners memory) {
         require(winnerById[_winnerId].winnerId != 0, "Winner does not exist");
-
         return winnerById[_winnerId];
     }
 
@@ -305,6 +326,8 @@ contract CompetitionManager is Ownable {
     function isCompetitionEnded(
         uint256 _competitionId
     ) external view returns (bool) {
-        return block.timestamp >= competitions[_competitionId].endAt;
+        return
+            block.timestamp >=
+            competitions[_competitionId].schedule.prizeCertificateClaim;
     }
 }

@@ -10,7 +10,7 @@ load_dotenv()
 NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
 
 
-def update_env(certificate_competition_address, competition_address, treasury_address, listing_token_prize_address, price_competition_manager_address, signer_manager_address, signer_manager_certificate_address, certificate_manager_address):
+def update_env(certificate_competition_address, competition_address, treasury_address, listing_token_prize_address, price_competition_manager_address, signer_manager_address, signer_manager_certificate_address, certificate_manager_address, treasury_prize_address):
     env_path = str(Path(project.path) / ".env")
 
     set_key(env_path, "CERTIFICATE_COMPETITION_CONTRACT", certificate_competition_address)
@@ -21,6 +21,7 @@ def update_env(certificate_competition_address, competition_address, treasury_ad
     set_key(env_path, "SIGNER_MANAGER_CONTRACT", signer_manager_address)
     set_key(env_path, "SIGNER_MANAGER_CERTIFICATE_CONTRACT", signer_manager_certificate_address)
     set_key(env_path, "CERTIFICATE_MANAGER_CONTRACT", certificate_manager_address)
+    set_key(env_path, "TREASURY_PRIZE_CONTRACT", treasury_prize_address)
 
     print(f"\nUpdated .env:")
     print(f"  CERTIFICATE_COMPETITION_CONTRACT={certificate_competition_address}")
@@ -31,6 +32,7 @@ def update_env(certificate_competition_address, competition_address, treasury_ad
     print(f"  SIGNER_MANAGER_CONTRACT={signer_manager_address}")
     print(f"  SIGNER_MANAGER_CERTIFICATE_CONTRACT={signer_manager_certificate_address}")
     print(f"  CERTIFICATE_MANAGER_CONTRACT={certificate_manager_address}")
+    print(f"  TREASURY_PRIZE_CONTRACT={treasury_prize_address}")
 
 
 @click.command()
@@ -92,6 +94,11 @@ def cli(platform_account_name, signer_account_name, organization_account_name, s
             account_platform.address, sender=account_platform
         )
 
+        print("Deploying TreasuryPrize...")
+        treasury_prize_contract = project.TreasuryPrize.deploy(
+            account_platform.address, sender=account_platform
+        )
+
         print("Deploying ListingTokenPrizeContract...")
         listing_token_prize_contract = project.ListingTokenPrizeContract.deploy(
             account_platform.address, sender=account_platform
@@ -113,7 +120,8 @@ def cli(platform_account_name, signer_account_name, organization_account_name, s
             price_competition_manager_contract.address,
             treasury_platform_contract.address,
             listing_token_prize_contract.address,
-            sender=account_org,
+            treasury_prize_contract.address,
+            sender=account_platform,
         )
 
         print("Deploying CertificateManager...")
@@ -139,6 +147,7 @@ def cli(platform_account_name, signer_account_name, organization_account_name, s
         competition_address = competition_contract.address
         certificate_manager_address = certificate_manager_contract.address
         treasury_address = treasury_platform_contract.address
+        treasury_prize_address = treasury_prize_contract.address
         listing_token_prize_address = listing_token_prize_contract.address
         price_competition_manager_address = price_competition_manager_contract.address
 
@@ -157,6 +166,7 @@ def cli(platform_account_name, signer_account_name, organization_account_name, s
         print(f"CompetitionManager          : {competition_address}")
         print(f"CertificateManager          : {certificate_manager_address}")
         print(f"TreasuryPlatform            : {treasury_address}")
+        print(f"TreasuryPrize               : {treasury_prize_address}")
         print(f"ListingTokenPrize           : {listing_token_prize_address}")
         print(f"PriceCompetitionManager     : {price_competition_manager_address}")
         print("Deploy success!")
@@ -170,6 +180,7 @@ def cli(platform_account_name, signer_account_name, organization_account_name, s
             str(signer_manager_address),
             str(signer_manager_certificate_address),
             str(certificate_manager_address),
+            str(treasury_prize_address),
         )
 
 

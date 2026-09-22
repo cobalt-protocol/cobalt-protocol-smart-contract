@@ -67,7 +67,7 @@ contract CertificateCompetition is ERC721, ERC721URIStorage, Ownable {
         require(competition.id != 0, "Competition does not exist");
 
         require(
-            block.timestamp >= competition.endAt,
+            block.timestamp >= competition.schedule.prizeCertificateClaim,
             "Competition is not ended"
         );
 
@@ -154,7 +154,7 @@ contract CertificateCompetition is ERC721, ERC721URIStorage, Ownable {
         require(competition.id != 0, "Competition does not exist");
 
         require(
-            block.timestamp >= competition.endAt,
+            block.timestamp >= competition.schedule.prizeCertificateClaim,
             "Competition is not ended"
         );
 

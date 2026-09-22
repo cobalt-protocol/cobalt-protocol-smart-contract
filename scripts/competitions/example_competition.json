@@ -5,6 +5,14 @@
     "description": "Build innovative dApps using blockchain technology.",
     "requirements": "Open for all developers",
     "durationInSeconds": 10,
+    "schedule": {
+      "registrationWindow": 0,
+      "competitionWindow": 0,
+      "submissionDeadline": 0,
+      "judgingReview": 0,
+      "resultAnnouncement": 0,
+      "prizeCertificateClaim": 0
+    },
     "treasuryToken": "0x0000000000000000000000000000000000000000",
     "certificateCID": "QmCertificateCID123",
     "guideBookCID": "QmGuideBookCID123",
@@ -31,4 +39,5 @@
     }
   ]
 }
+
 
