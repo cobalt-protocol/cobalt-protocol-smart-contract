@@ -36,8 +36,8 @@ contract CompetitionManager is Ownable {
     }
 
     struct Winners {
+        uint256 id;
         uint256 competitionId;
-        uint256 winnerId;
         string title;
         address prizeToken;
         uint256 prizeAmount;
@@ -45,7 +45,7 @@ contract CompetitionManager is Ownable {
     }
 
     struct ParticipantWinner {
-        uint256 participantWinnerId;
+        uint256 id;
         uint256 winnerId;
         address participant;
     }
@@ -63,10 +63,9 @@ contract CompetitionManager is Ownable {
     event CompetitionCreated(
         uint256 indexed id,
         address indexed organization,
-        string name,
-        string category,
-        uint256 prizeCertificateClaim,
-        string certificateCID
+        Competitions competition,
+        Winners[] winners,
+        uint256 priceCompetitionFeeId
     );
 
     event WinnerSet(
@@ -140,20 +139,15 @@ contract CompetitionManager is Ownable {
         );
         require(_winners.length > 0, "Must have at least one winner");
 
+        address sender = _competition.organization == address(0)
+            ? msg.sender
+            : _competition.organization;
+
         competitionId++;
 
         competitions[competitionId] = _competition;
         competitions[competitionId].id = competitionId;
-        competitions[competitionId].organization = msg.sender;
-
-        emit CompetitionCreated(
-            competitionId,
-            msg.sender,
-            _competition.name,
-            _competition.category,
-            _competition.schedule.prizeCertificateClaim,
-            _competition.certificateCID
-        );
+        competitions[competitionId].organization = sender;
 
         PriceCompetitionManager.PriceCompetitionFee
             memory platformFee = priceCompetitionManagerContract
@@ -192,8 +186,8 @@ contract CompetitionManager is Ownable {
 
             winnerId++;
             Winners memory newWinner = Winners({
+                id: winnerId,
                 competitionId: competitionId,
-                winnerId: winnerId,
                 title: _winners[i].title,
                 prizeToken: _winners[i].prizeToken,
                 prizeAmount: _winners[i].prizeAmount,
@@ -205,6 +199,14 @@ contract CompetitionManager is Ownable {
         }
 
         competitionTotalPrize[competitionId] = totalPrizeAmount;
+
+        emit CompetitionCreated(
+            competitionId,
+            sender,
+            competitions[competitionId],
+            winners[competitionId],
+            _priceCompetitionFeeId
+        );
 
         uint256 requiredNative = 0;
         if (fee > 0 && feeToken == address(0)) {
@@ -219,18 +221,14 @@ contract CompetitionManager is Ownable {
         if (fee > 0) {
             if (feeToken == address(0)) {
                 treasuryPlatformContract.addTreasuryFrom{value: fee}(
-                    msg.sender,
+                    sender,
                     address(0),
                     fee
                 );
             } else {
-                treasuryPlatformContract.addTreasuryFrom(
-                    msg.sender,
-                    feeToken,
-                    fee
-                );
+                treasuryPlatformContract.addTreasuryFrom(sender, feeToken, fee);
             }
-            emit CompetitionFeePaid(competitionId, msg.sender, feeToken, fee);
+            emit CompetitionFeePaid(competitionId, sender, feeToken, fee);
         }
 
         if (totalPrizeAmount > 0) {
@@ -241,11 +239,11 @@ contract CompetitionManager is Ownable {
                 TreasuryPrize.TreasuryPrize({
                     id: 0,
                     competitionId: competitionId,
-                    organization: msg.sender,
+                    organization: sender,
                     totalPrize: totalPrizeAmount,
                     tokenAddress: firstPrizeToken
                 }),
-                msg.sender
+                sender
             );
         }
     }
@@ -255,7 +253,7 @@ contract CompetitionManager is Ownable {
         address _participant,
         uint256 _competition_id
     ) external onlyOrganization(msg.sender, _competition_id) {
-        require(winnerById[_winnerId].winnerId != 0, "Winner does not exist");
+        require(winnerById[_winnerId].id != 0, "Winner does not exist");
         require(
             winnerById[_winnerId].competitionId == _competition_id,
             "Winner does not belong to this competition"
@@ -276,7 +274,7 @@ contract CompetitionManager is Ownable {
 
         participantWinner[_winnerId].push(
             ParticipantWinner({
-                participantWinnerId: participantWinnerId,
+                id: participantWinnerId,
                 winnerId: _winnerId,
                 participant: _participant
             })
@@ -304,6 +302,40 @@ contract CompetitionManager is Ownable {
         return competitions[_competitionId];
     }
 
+    function getCompetitionsByOrganization(
+        address _organization
+    ) external view returns (Competitions[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 1; i <= competitionId; i++) {
+            if (competitions[i].organization == _organization) {
+                count++;
+            }
+        }
+
+        Competitions[] memory result = new Competitions[](count);
+        uint256 index = 0;
+        for (uint256 i = 1; i <= competitionId; i++) {
+            if (competitions[i].organization == _organization) {
+                result[index] = competitions[i];
+                index++;
+            }
+        }
+
+        return result;
+    }
+
+    function getAllCompetitions()
+        external
+        view
+        returns (Competitions[] memory)
+    {
+        Competitions[] memory result = new Competitions[](competitionId);
+        for (uint256 i = 1; i <= competitionId; i++) {
+            result[i - 1] = competitions[i];
+        }
+        return result;
+    }
+
     function getWinners(
         uint256 _competitionId
     ) external view returns (Winners[] memory) {
@@ -313,7 +345,7 @@ contract CompetitionManager is Ownable {
     function getWinner(
         uint256 _winnerId
     ) external view returns (Winners memory) {
-        require(winnerById[_winnerId].winnerId != 0, "Winner does not exist");
+        require(winnerById[_winnerId].id != 0, "Winner does not exist");
         return winnerById[_winnerId];
     }
 

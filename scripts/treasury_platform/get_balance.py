@@ -62,14 +62,19 @@ def cli(account_name, contract_address, token_address, network):
 
         if token_address == NATIVE_TOKEN:
             owner_balance = provider.get_balance(owner_address)
+            contract_balance = provider.get_balance(contract.address)
         else:
             erc20 = Contract(token_address)
             owner_balance = erc20.balanceOf(owner_address)
+            contract_balance = erc20.balanceOf(contract.address)
 
         owner_balance_eth = owner_balance / 10**18
+        contract_balance_eth = contract_balance / 10**18
 
         print(f"\n{'='*50}")
-        print("Treasury Balance (Owner)")
+        print("Treasury Balance")
         print(f"{'='*50}")
-        print(f"  Owner   : {owner_address}")
-        print(f"  Balance : {owner_balance_eth} {token_symbol} ({owner_balance} wei)")
+        print(f"  Owner Address    : {owner_address}")
+        print(f"  Owner Balance    : {owner_balance_eth} {token_symbol} ({owner_balance} wei)")
+        print(f"  Contract Address : {contract.address}")
+        print(f"  Contract Balance : {contract_balance_eth} {token_symbol} ({contract_balance} wei)")

@@ -4,7 +4,8 @@
     "category": "Hackathon",
     "description": "Build innovative dApps using blockchain technology.",
     "requirements": "Open for all developers",
-    "durationInSeconds": 10,
+    "organization": "0x0000000000000000000000000000000000000000",
+    "durationInSeconds": 300,
     "schedule": {
       "registrationWindow": 0,
       "competitionWindow": 0,

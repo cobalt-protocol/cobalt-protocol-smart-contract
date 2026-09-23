@@ -7,7 +7,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract SignerManager is Ownable {
     address public signerAddress;
 
-    event SignerAddressSet(address indexed signerAddress);
+    event SignerAddressUpdated(address indexed signerAddress);
 
     constructor(
         address initialOwner,
@@ -16,8 +16,8 @@ contract SignerManager is Ownable {
         signerAddress = _signerAddress;
     }
 
-    function setSignerAddress(address _signerAddress) external onlyOwner {
+    function updateSignerAddress(address _signerAddress) external onlyOwner {
         signerAddress = _signerAddress;
-        emit SignerAddressSet(_signerAddress);
+        emit SignerAddressUpdated(_signerAddress);
     }
 }

@@ -6,7 +6,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract ListingTokenPrizeContract is Ownable {
     struct ListingTokenPrize {
-        uint256 listingTokenPrizeId;
+        uint256 id;
         address tokenAddress;
         bool isActive;
     }
@@ -30,15 +30,12 @@ contract ListingTokenPrizeContract is Ownable {
     constructor(address initialOwner) Ownable(initialOwner) {}
 
     function addListingTokenPrize(address _tokenAddress) external onlyOwner {
-        require(
-            listingToken[_tokenAddress].listingTokenPrizeId == 0,
-            "Token already listed"
-        );
+        require(listingToken[_tokenAddress].id == 0, "Token already listed");
 
         listingTokenPrizeId++;
 
         listingToken[_tokenAddress] = ListingTokenPrize({
-            listingTokenPrizeId: listingTokenPrizeId,
+            id: listingTokenPrizeId,
             tokenAddress: _tokenAddress,
             isActive: true
         });
@@ -49,10 +46,7 @@ contract ListingTokenPrizeContract is Ownable {
     function deactivateListingTokenPrize(
         address _tokenAddress
     ) external onlyOwner {
-        require(
-            listingToken[_tokenAddress].listingTokenPrizeId != 0,
-            "Token is not listed"
-        );
+        require(listingToken[_tokenAddress].id != 0, "Token is not listed");
 
         require(
             listingToken[_tokenAddress].isActive,
@@ -62,13 +56,13 @@ contract ListingTokenPrizeContract is Ownable {
         listingToken[_tokenAddress].isActive = false;
 
         emit ListingTokenPrizeDeactivated(
-            listingToken[_tokenAddress].listingTokenPrizeId,
+            listingToken[_tokenAddress].id,
             _tokenAddress,
             listingToken[_tokenAddress].isActive
         );
     }
 
     function isTokenListed(address _tokenAddress) external view returns (bool) {
-        return listingToken[_tokenAddress].listingTokenPrizeId != 0;
+        return listingToken[_tokenAddress].id != 0;
     }
 }

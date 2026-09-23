@@ -19,7 +19,7 @@ contract TreasuryPrize is Ownable {
 
     mapping(uint256 => TreasuryPrize) public treasuryPrizeByCompetitionId;
 
-    event TreasuryPrizeAdded(
+    event PrizeDeposited(
         uint256 indexed treasuryPrizeId,
         uint256 indexed competitionId,
         address indexed tokenAddress,
@@ -27,7 +27,7 @@ contract TreasuryPrize is Ownable {
         uint256 amount
     );
 
-    event TreasuryPrizePaidOut(
+    event PrizeDistributed(
         uint256 indexed treasuryPrizeId,
         uint256 indexed competitionId,
         address indexed tokenAddress,
@@ -74,7 +74,7 @@ contract TreasuryPrize is Ownable {
         treasuryPrize[treasuryPrizeId] = newEntry;
         treasuryPrizeByCompetitionId[_treasuryPrize.competitionId] = newEntry;
 
-        emit TreasuryPrizeAdded(
+        emit PrizeDeposited(
             treasuryPrizeId,
             _treasuryPrize.competitionId,
             _treasuryPrize.tokenAddress,
@@ -92,13 +92,24 @@ contract TreasuryPrize is Ownable {
     ) external {
         address caller = _from == address(0) ? msg.sender : _from;
 
-        TreasuryPrize storage compPrize = treasuryPrizeByCompetitionId[_competitionId];
-        require(compPrize.organization != address(0), "Treasury does not exist");
-        require(caller == compPrize.organization, "Only organization can payout");
+        TreasuryPrize storage compPrize = treasuryPrizeByCompetitionId[
+            _competitionId
+        ];
+        require(
+            compPrize.organization != address(0),
+            "Treasury does not exist"
+        );
+        require(
+            caller == compPrize.organization,
+            "Only organization can payout"
+        );
         require(_to != address(0), "Invalid recipient");
         require(_amount > 0, "Amount must be greater than 0");
         require(compPrize.totalPrize >= _amount, "Insufficient prize balance");
-        require(compPrize.tokenAddress == _tokenAddress, "Token address mismatch");
+        require(
+            compPrize.tokenAddress == _tokenAddress,
+            "Token address mismatch"
+        );
 
         compPrize.totalPrize -= _amount;
 
@@ -115,13 +126,7 @@ contract TreasuryPrize is Ownable {
             require(success, "Transfer failed");
         }
 
-        emit TreasuryPrizePaidOut(
-            tId,
-            _competitionId,
-            _tokenAddress,
-            _to,
-            _amount
-        );
+        emit PrizeDistributed(tId, _competitionId, _tokenAddress, _to, _amount);
     }
 
     receive() external payable {

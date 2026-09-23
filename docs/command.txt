@@ -5,7 +5,8 @@
 # ------------------------------------------------------------------------------
 # STEP 1: ACCOUNTS PREPARATION
 # ------------------------------------------------------------------------------
-# 1.1 Generate a new EVM account (if needed)
+# 1.1 Generate a new EVM account (default network: bot_chain:bot_chain_test_net:node)
+ape run accounts generate_account
 ape run accounts generate_account --network <NETWORK>
 
 # 1.2 Check native account balance
@@ -16,64 +17,110 @@ ape run accounts check_balance platform --network bot_chain:bot_chain_test_net:n
 # STEP 2: CONTRACTS DEPLOYMENT
 # ------------------------------------------------------------------------------
 # Deploy all smart contracts (Platform, Signer, Organization)
+# Options:
+#   --signer <ADDRESS>                    Custom signer address (default: PUBLIC_KEY_SIGNER from .env or signer_account address)
+#   --auto-listing / --no-auto-listing    Auto list Native Token & set default Free Tier fee (default: --no-auto-listing)
+
 # Option A: Deploy with auto-listing Native Token & default Free Tier fee (Recommended)
 ape run deploy_contract <PLATFORM_ACCOUNT_NAME> <SIGNER_ACCOUNT_NAME> <ORGANIZATION_ACCOUNT_NAME> --auto-listing --network <NETWORK>
+ape run deploy_contract platform signer organization --auto-listing --network bot_chain:bot_chain_test_net:node
 
 # Option B: Deploy without auto-listing
 ape run deploy_contract <PLATFORM_ACCOUNT_NAME> <SIGNER_ACCOUNT_NAME> <ORGANIZATION_ACCOUNT_NAME> --no-auto-listing --network <NETWORK>
 ape run deploy_contract platform signer organization --no-auto-listing --network bot_chain:bot_chain_test_net:node
 
+# Option C: Deploy specifying custom signer address
+ape run deploy_contract <PLATFORM_ACCOUNT_NAME> <SIGNER_ACCOUNT_NAME> <ORGANIZATION_ACCOUNT_NAME> --signer <SIGNER_ADDRESS> --auto-listing --network <NETWORK>
+
 
 # ------------------------------------------------------------------------------
 # STEP 3: SIGNER & SYSTEM CONFIGURATION (OPTIONAL / UPDATE)
 # ------------------------------------------------------------------------------
-# Update Signer Address on SignerManager instances (target: 'mint', 'cert', or 'both')
+# Update Signer Address on SignerManager instances
+# Options:
+#   --target <mint|cert|both>   Target instance: 'mint' (SignerManager), 'cert' (SignerManagerCertificate), or 'both' (default: both)
+#   --contract <ADDRESS>        Override CertificateCompetition contract address (default: CERTIFICATE_COMPETITION_CONTRACT from .env)
 ape run set_signer_address <ACCOUNT_NAME> <NEW_SIGNER_ADDRESS> --target <TARGET> --network <NETWORK>
+ape run set_signer_address platform 0x1234567890abcdef1234567890abcdef12345678 --target both --network bot_chain:bot_chain_test_net:node
 
 
 # ------------------------------------------------------------------------------
 # STEP 4: PLATFORM FEE MANAGEMENT (PriceCompetitionManager)
 # ------------------------------------------------------------------------------
-# 4.1 Set platform fee option (Native Token by default)
+# 4.1 Add a new platform fee option (Native Token by default)
+# Options:
+#   --token <ADDRESS>          Fee token address (default: 0x0000000000000000000000000000000000000000)
+#   --title <TITLE>            Fee title (default: Standard Fee)
+#   --description <DESC>       Fee description (default: Standard platform fee)
+#   --contract <ADDRESS>       Override PriceCompetitionManager contract address
 ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --network <NETWORK>
 ape run fee_manager set_fees platform 0.5 --network bot_chain:bot_chain_test_net:node
 
-# 4.2 Set platform fee option with custom ERC20 token
+# 4.2 Add a platform fee option with custom ERC20 token, title, and description
 ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --token <TOKEN_ADDRESS> --title <TITLE> --description <DESCRIPTION> --network <NETWORK>
+ape run fee_manager set_fees platform 10.0 --token 0x1234567890abcdef1234567890abcdef12345678 --title "Premium Tier" --description "Premium fee tier in ERC20" --network bot_chain:bot_chain_test_net:node
 
-# 4.3 Query platform fee option details by Fee ID
+# 4.3 Update an existing platform fee option by Fee ID
+ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --fee-id <FEE_ID> --title <TITLE> --description <DESCRIPTION> --network <NETWORK>
+ape run fee_manager set_fees platform 0.2 --fee-id 1 --title "Free Tier Updated" --description "Updated description" --network bot_chain:bot_chain_test_net:node
+
+# 4.4 Query platform fee option details by Fee ID (default fee-id: 1)
 ape run fee_manager get_fees <ACCOUNT_NAME> --fee-id <FEE_ID> --network <NETWORK>
 ape run fee_manager get_fees platform --fee-id 1 --network bot_chain:bot_chain_test_net:node
 
 
 # ------------------------------------------------------------------------------
-# STEP 5: LISTING TOKEN PRIZE SETUP
+# STEP 5: LISTING TOKEN PRIZE SETUP (ListingTokenPrizeContract)
 # ------------------------------------------------------------------------------
-# Add allowed prize token (Native Token: 0x0000000000000000000000000000000000000000 or ERC20 address)
+# 5.1 Add allowed prize token (Native Token: 0x0000000000000000000000000000000000000000 or ERC20 token address)
+# Option: --contract <ADDRESS> (default: LISTING_TOKEN_PRIZE_CONTRACT from .env)
 ape run listing_token_prize add_listing_token_prize <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
 ape run listing_token_prize add_listing_token_prize platform 0x0000000000000000000000000000000000000000 --network bot_chain:bot_chain_test_net:node
+
+# 5.2 Deactivate prize token in whitelist
+# Option: --contract <ADDRESS> (default: LISTING_TOKEN_PRIZE_CONTRACT from .env)
+ape run listing_token_prize deactivate_listing_token_prize <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
+ape run listing_token_prize deactivate_listing_token_prize platform 0x1234567890abcdef1234567890abcdef12345678 --network bot_chain:bot_chain_test_net:node
 
 
 # ------------------------------------------------------------------------------
 # STEP 6: COMPETITION CREATION & VIEWING
 # ------------------------------------------------------------------------------
 # 6.1 Create a new competition from JSON config
+# Option: --contract <ADDRESS> (default: COMPETITION_CONTRACT from .env)
 ape run competitions create_competition <ACCOUNT_NAME> <INPUT_JSON_PATH> --network <NETWORK>
 ape run competitions create_competition organization scripts/competitions/example_competition.json --network bot_chain:bot_chain_test_net:node
 
-# 6.2 Get competition details by Competition ID
+# 6.2 Get competition details (by Competition ID, by Organization, or All)
+# Options:
+#   --organization / -o <ADDRESS>  Filter by organization address
+#   --all / -a                      Fetch all competitions
+#   --contract <ADDRESS>            Override COMPETITION_CONTRACT address
+
+# Option A: Get by Competition ID
 ape run competitions get_competition <ACCOUNT_NAME> <COMPETITION_ID> --network <NETWORK>
 ape run competitions get_competition organization 1 --network bot_chain:bot_chain_test_net:node
 
+# Option B: Get all competitions by Organization Address
+ape run competitions get_competition <ACCOUNT_NAME> --organization <ORGANIZATION_ADDRESS> --network <NETWORK>
+ape run competitions get_competition organization --organization 0x87869872407D499b01e1aCFa3461a4d4Bf632204 --network bot_chain:bot_chain_test_net:node
+
+# Option C: Get all competitions
+ape run competitions get_competition <ACCOUNT_NAME> --all --network <NETWORK>
+ape run competitions get_competition organization --all --network bot_chain:bot_chain_test_net:node
+
 # 6.3 Check if competition has ended
+# Option: --contract <ADDRESS> (default: COMPETITION_CONTRACT from .env)
 ape run competitions is_competition_ended <ACCOUNT_NAME> <COMPETITION_ID> --network <NETWORK>
 ape run competitions is_competition_ended organization 1 --network bot_chain:bot_chain_test_net:node
 
 # 6.4 Get all winners of a competition
+# Option: --contract <ADDRESS> (default: COMPETITION_CONTRACT from .env)
 ape run competitions get_winners <ACCOUNT_NAME> <COMPETITION_ID> --network <NETWORK>
 ape run competitions get_winners organization 1 --network bot_chain:bot_chain_test_net:node
 
 # 6.5 Get single winner details by Winner ID
+# Option: --contract <ADDRESS> (default: COMPETITION_CONTRACT from .env)
 ape run competitions get_winner <ACCOUNT_NAME> <WINNER_ID> --network <NETWORK>
 ape run competitions get_winner organization 1 --network bot_chain:bot_chain_test_net:node
 
@@ -82,38 +129,59 @@ ape run competitions get_winner organization 1 --network bot_chain:bot_chain_tes
 # STEP 7: WINNER SELECTION & PRIZE PAYOUT
 # ------------------------------------------------------------------------------
 # 7.1 Assign winner & trigger instant prize payout to participant address
+# Option: --contract <ADDRESS> (default: COMPETITION_CONTRACT from .env)
 ape run competitions set_winner <ACCOUNT_NAME> <WINNER_ID> <PARTICIPANT_ADDRESS> <COMPETITION_ID> --network <NETWORK>
+ape run competitions set_winner organization 1 0x1234567890abcdef1234567890abcdef12345678 1 --network bot_chain:bot_chain_test_net:node
 
 # 7.2 Get participant winners assigned to a Winner ID
+# Option: --contract <ADDRESS> (default: COMPETITION_CONTRACT from .env)
 ape run competitions get_participant_winners <ACCOUNT_NAME> <WINNER_ID> --network <NETWORK>
+ape run competitions get_participant_winners organization 1 --network bot_chain:bot_chain_test_net:node
 
 
 # ------------------------------------------------------------------------------
-# STEP 8: TREASURY MONITORING
+# STEP 8: TREASURY MONITORING & MANAGEMENT
 # ------------------------------------------------------------------------------
-# 8.1 Get TreasuryPlatform owner balance (default: native token)
+# 8.1 Get TreasuryPlatform owner and contract native token balance
+# Options:
+#   --token <ADDRESS>     Token address to check balance for (default: native token 0x0000000000000000000000000000000000000000)
+#   --contract <ADDRESS>  Override TreasuryPlatform contract address (default: TREASURY_PLATFORM_CONTRACT from .env)
 ape run treasury_platform get_balance <ACCOUNT_NAME> --network <NETWORK>
+ape run treasury_platform get_balance platform --network bot_chain:bot_chain_test_net:node
 
-# 8.2 Get TreasuryPlatform owner ERC20 token balance
+# 8.2 Get TreasuryPlatform owner and contract ERC20 token balance
 ape run treasury_platform get_balance <ACCOUNT_NAME> --token <TOKEN_ADDRESS> --network <NETWORK>
 
-# 8.3 Get TreasuryPrize details by Competition ID
+# 8.3 Update TreasuryPlatform owner address
+# Option: --contract <ADDRESS> (default: TREASURY_PLATFORM_CONTRACT from .env)
+ape run treasury_platform update_owner <ACCOUNT_NAME> <NEW_OWNER_ADDRESS> --network <NETWORK>
+ape run treasury_platform update_owner platform 0x1234567890abcdef1234567890abcdef12345678 --network bot_chain:bot_chain_test_net:node
+
+# 8.4 Get TreasuryPrize details by Competition ID
+# Option: --contract <ADDRESS> (default: TREASURY_PRIZE_CONTRACT from .env)
 ape run treasury_prize get_treasury_prize <ACCOUNT_NAME> <COMPETITION_ID> --network <NETWORK>
+ape run treasury_prize get_treasury_prize organization 1 --network bot_chain:bot_chain_test_net:node
 
 
 # ------------------------------------------------------------------------------
 # STEP 9: CERTIFICATES & MINTING
 # ------------------------------------------------------------------------------
 # 9.1 Claim general participant certificate
+# Option: --contract <ADDRESS> (default: CERTIFICATE_COMPETITION_CONTRACT from .env)
 ape run competitions claim_certificate_participant <ACCOUNT_NAME> <COMPETITION_ID> --network <NETWORK>
+ape run competitions claim_certificate_participant user 1 --network bot_chain:bot_chain_test_net:node
 
 # 9.2 Claim winner participant certificate
+# Option: --contract <ADDRESS> (default: CERTIFICATE_COMPETITION_CONTRACT from .env)
 ape run competitions claim_certificate_participant_winner <ACCOUNT_NAME> <WINNER_ID> --network <NETWORK>
+ape run competitions claim_certificate_participant_winner user 1 --network bot_chain:bot_chain_test_net:node
 
 # 9.3 View certificate participant entry details from CertificateManager
+# Option: --contract <ADDRESS> (default: CERTIFICATE_MANAGER_CONTRACT from .env)
 ape run competitions get_certificate_participant <ACCOUNT_NAME> <CERTIFICATE_ID> --network <NETWORK>
 
 # 9.4 View certificate participant winner entry details from CertificateManager
+# Option: --contract <ADDRESS> (default: CERTIFICATE_MANAGER_CONTRACT from .env)
 ape run competitions get_certificate_participant_winner <ACCOUNT_NAME> <CERTIFICATE_ID> --network <NETWORK>
 
 

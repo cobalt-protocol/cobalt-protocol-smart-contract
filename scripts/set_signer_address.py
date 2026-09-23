@@ -62,7 +62,7 @@ def cli(account_name, new_signer_address, target, contract_address, network):
                 print("Signer address is already set to the new address.")
             else:
                 print("Updating signer address on SignerManager...")
-                tx = signer_manager.setSignerAddress(new_signer_address, sender=owner_account)
+                tx = signer_manager.updateSignerAddress(new_signer_address, sender=owner_account)
                 print(f"TX Hash        : {tx.txn_hash}")
                 print(f"Updated Signer : {signer_manager.signerAddress()}")
 
@@ -77,7 +77,7 @@ def cli(account_name, new_signer_address, target, contract_address, network):
                 print("Signer address is already set to the new address.")
             else:
                 print("Updating signer address on SignerManagerCertificate...")
-                tx = signer_manager_cert.setSignerAddress(new_signer_address, sender=owner_account)
+                tx = signer_manager_cert.updateSignerAddress(new_signer_address, sender=owner_account)
                 print(f"TX Hash        : {tx.txn_hash}")
                 print(f"Updated Signer : {signer_manager_cert.signerAddress()}")
 

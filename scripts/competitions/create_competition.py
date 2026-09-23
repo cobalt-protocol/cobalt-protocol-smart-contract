@@ -76,33 +76,44 @@ def cli(account_name, input_json, contract_address, network):
         print(f"Fee Option ID : {platform_fee_id} ({fee_data.title} - {fee_data.description})")
         print(f"Treasury Fee  : {treasury_fee / 10**18} ({treasury_fee} wei)")
 
-        now = datetime.now(timezone.utc)
-        now_ts = int(now.timestamp())
+        try:
+            chain_now_ts = int(provider.chain.blocks.head.timestamp)
+        except Exception:
+            chain_now_ts = int(datetime.now(timezone.utc).timestamp())
+
         if "durationInSeconds" in competition:
             duration_seconds = competition["durationInSeconds"]
+            if duration_seconds < 60:
+                duration_seconds = 60
             duration_desc = f"{duration_seconds} seconds"
-            end_at_dt = now + timedelta(seconds=duration_seconds)
+            end_at_ts = chain_now_ts + duration_seconds
         elif "durationInDays" in competition:
             duration_days = competition["durationInDays"]
             duration_desc = f"{duration_days} days"
-            end_at_dt = now + timedelta(days=duration_days)
+            end_at_ts = chain_now_ts + (duration_days * 86400)
         else:
-            duration_desc = "10 seconds"
-            end_at_dt = now + timedelta(seconds=10)
-
-        end_at_ts = int(end_at_dt.timestamp())
+            duration_desc = "300 seconds"
+            end_at_ts = chain_now_ts + 300
 
         if "schedule" in competition and isinstance(competition["schedule"], dict):
             sched = competition["schedule"]
-            reg_window = sched.get("registrationWindow", now_ts) or now_ts
-            comp_window = sched.get("competitionWindow", now_ts) or now_ts
-            sub_deadline = sched.get("submissionDeadline", end_at_ts) or end_at_ts
-            judging = sched.get("judgingReview", end_at_ts) or end_at_ts
-            announcement = sched.get("resultAnnouncement", end_at_ts) or end_at_ts
-            prize_claim = sched.get("prizeCertificateClaim", end_at_ts) or end_at_ts
+            reg_window = sched.get("registrationWindow") or chain_now_ts
+            comp_window = sched.get("competitionWindow") or chain_now_ts
+            sub_deadline = sched.get("submissionDeadline") or end_at_ts
+            judging = sched.get("judgingReview") or end_at_ts
+            announcement = sched.get("resultAnnouncement") or end_at_ts
+            prize_claim = sched.get("prizeCertificateClaim") or end_at_ts
+
+            if prize_claim <= chain_now_ts:
+                prize_claim = end_at_ts
+                sub_deadline = end_at_ts
+                judging = end_at_ts
+                announcement = end_at_ts
+                reg_window = chain_now_ts
+                comp_window = chain_now_ts
         else:
-            reg_window = now_ts
-            comp_window = now_ts
+            reg_window = chain_now_ts
+            comp_window = chain_now_ts
             sub_deadline = end_at_ts
             judging = end_at_ts
             announcement = end_at_ts
@@ -117,13 +128,16 @@ def cli(account_name, input_json, contract_address, network):
             prize_claim,
         )
 
+        org_setting = competition.get("organization", NATIVE_TOKEN)
+        effective_org = akun.address if not org_setting or org_setting == NATIVE_TOKEN else org_setting
+
         competition_input = (
             0,
             competition["name"],
             competition["category"],
             competition["description"],
             competition["requirements"],
-            akun.address,
+            org_setting,
             schedule_tuple,
             competition["certificateCID"],
             competition.get("guideBookCID", ""),
@@ -154,6 +168,7 @@ def cli(account_name, input_json, contract_address, network):
         print(f"Category    : {competition['category']}")
         print(f"Description : {competition['description']}")
         print(f"Requirements: {competition['requirements']}")
+        print(f"Organization: {effective_org}")
         print(f"Duration    : {duration_desc}")
         print(f"Schedule    :")
         print(f"  Registration Window    : {reg_window}")
@@ -192,18 +207,24 @@ def cli(account_name, input_json, contract_address, network):
         if treasury_fee > 0 and fee_token != NATIVE_TOKEN:
             treasury_address = contract.treasuryPlatformContract()
             erc20 = Contract(fee_token)
-            allowance = erc20.allowance(akun.address, treasury_address)
+            allowance = erc20.allowance(effective_org, treasury_address)
             if allowance < treasury_fee:
-                print(f"\nApproving TreasuryPlatform to spend {treasury_fee} wei of fee token...")
-                erc20.approve(treasury_address, treasury_fee, sender=akun)
+                if effective_org == akun.address:
+                    print(f"\nApproving TreasuryPlatform to spend {treasury_fee} wei of fee token...")
+                    erc20.approve(treasury_address, treasury_fee, sender=akun)
+                else:
+                    print(f"\nWarning: Fee token allowance for organization ({effective_org}) on TreasuryPlatform is insufficient.")
 
         if total_prize_amount > 0 and first_prize_token != NATIVE_TOKEN:
             treasury_prize_address = contract.treasuryPrizeContract()
             erc20_prize = Contract(first_prize_token)
-            allowance_prize = erc20_prize.allowance(akun.address, treasury_prize_address)
+            allowance_prize = erc20_prize.allowance(effective_org, treasury_prize_address)
             if allowance_prize < total_prize_amount:
-                print(f"\nApproving TreasuryPrize to spend {total_prize_amount} wei of prize token...")
-                erc20_prize.approve(treasury_prize_address, total_prize_amount, sender=akun)
+                if effective_org == akun.address:
+                    print(f"\nApproving TreasuryPrize to spend {total_prize_amount} wei of prize token...")
+                    erc20_prize.approve(treasury_prize_address, total_prize_amount, sender=akun)
+                else:
+                    print(f"\nWarning: Prize token allowance for organization ({effective_org}) on TreasuryPrize is insufficient.")
 
         tx = contract.createCompetition(
             competition_input,

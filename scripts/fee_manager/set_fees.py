@@ -12,6 +12,7 @@ NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
 @click.command()
 @click.argument("account_name")
 @click.argument("treasury_fee", type=str)
+@click.option("--fee-id", "fee_id", default=None, type=int, help="PriceCompetitionFee ID to update (if omitted, creates a new fee option)")
 @click.option("--token", "token_address", default=NATIVE_TOKEN, help="Fee token address (default: native token)")
 @click.option("--title", default="Standard Fee", help="Title for the fee option")
 @click.option("--description", default="Standard platform fee", help="Description for the fee option")
@@ -22,7 +23,7 @@ NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
     help="Contract address (default: PRICE_COMPETITION_MANAGER_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
-def cli(account_name, treasury_fee, token_address, title, description, contract_address, network):
+def cli(account_name, treasury_fee, fee_id, token_address, title, description, contract_address, network):
     try:
         val = float(treasury_fee)
         if val < 10**9:
@@ -60,10 +61,15 @@ def cli(account_name, treasury_fee, token_address, title, description, contract_
         print(f"Description      : {description}")
         print(f"New Treasury Fee : {treasury_fee_wei / 10**18} ({treasury_fee_wei} wei)")
 
-        print("\nAdding fee option on PriceCompetitionManager...")
-        tx = contract.setPriceCompetitionFee(treasury_fee_wei, token_address, title, description, sender=akun)
+        if fee_id is not None:
+            print(f"\nUpdating fee option #{fee_id} on PriceCompetitionManager...")
+            tx = contract.updatePriceCompetitionFee(fee_id, treasury_fee_wei, token_address, title, description, sender=akun)
+        else:
+            print("\nAdding fee option on PriceCompetitionManager...")
+            tx = contract.setPriceCompetitionFee(treasury_fee_wei, token_address, title, description, sender=akun)
 
         print(f"TX Hash          : {tx.txn_hash}")
         print("Set fees success!")
+
 
 
