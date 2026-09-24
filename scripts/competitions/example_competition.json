@@ -22,23 +22,21 @@
   "winners": [
     {
       "title": "1st Place",
-      "prizeToken": "0x0000000000000000000000000000000000000000",
-      "prizeAmount": 0.05,
+      "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
+      "prizeAmount": 1,
       "certificateCID": "QmWinnerCertCID123"
     },
     {
       "title": "2nd Place",
-      "prizeToken": "0x0000000000000000000000000000000000000000",
-      "prizeAmount": 0.03,
+      "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
+      "prizeAmount": 2,
       "certificateCID": "QmWinnerCertCID456"
     },
     {
       "title": "3rd Place",
-      "prizeToken": "0x0000000000000000000000000000000000000000",
-      "prizeAmount": 0.01,
+      "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
+      "prizeAmount": 3,
       "certificateCID": "QmWinnerCertCID789"
     }
   ]
 }
-
-

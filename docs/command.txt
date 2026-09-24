@@ -9,9 +9,12 @@
 ape run accounts generate_account
 ape run accounts generate_account --network <NETWORK>
 
-# 1.2 Check native account balance
+# 1.2 Check account balance (Native Token & ERC20 Token)
+# Options:
+#   --token <ADDRESS>   Token address (default: 0x0000000000000000000000000000000000000000 for Native Token)
 ape run accounts check_balance <ACCOUNT_NAME> --network <NETWORK>
 ape run accounts check_balance platform --network bot_chain:bot_chain_test_net:node
+ape run accounts check_balance organization --token 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
 
 # ------------------------------------------------------------------------------
 # STEP 2: CONTRACTS DEPLOYMENT
@@ -76,11 +79,19 @@ ape run fee_manager get_fees platform --fee-id 1 --network bot_chain:bot_chain_t
 # Option: --contract <ADDRESS> (default: LISTING_TOKEN_PRIZE_CONTRACT from .env)
 ape run listing_token_prize add_listing_token_prize <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
 ape run listing_token_prize add_listing_token_prize platform 0x0000000000000000000000000000000000000000 --network bot_chain:bot_chain_test_net:node
+ape run listing_token_prize add_listing_token_prize platform 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
 
 # 5.2 Deactivate prize token in whitelist
 # Option: --contract <ADDRESS> (default: LISTING_TOKEN_PRIZE_CONTRACT from .env)
 ape run listing_token_prize deactivate_listing_token_prize <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
 ape run listing_token_prize deactivate_listing_token_prize platform 0x1234567890abcdef1234567890abcdef12345678 --network bot_chain:bot_chain_test_net:node
+ape run listing_token_prize deactivate_listing_token_prize platform 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
+
+# 5.3 Check if prize token is listed in whitelist
+# Option: --contract <ADDRESS> (default: LISTING_TOKEN_PRIZE_CONTRACT from .env)
+ape run listing_token_prize is_token_listed <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
+ape run listing_token_prize is_token_listed platform 0x0000000000000000000000000000000000000000 --network bot_chain:bot_chain_test_net:node
+ape run listing_token_prize is_token_listed platform 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
 
 
 # ------------------------------------------------------------------------------

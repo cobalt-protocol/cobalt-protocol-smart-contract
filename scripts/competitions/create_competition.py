@@ -10,6 +10,61 @@ load_dotenv()
 
 NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
 
+ERC20_ABI = [
+    {
+        "constant": True,
+        "inputs": [
+            {"name": "_owner", "type": "address"},
+            {"name": "_spender", "type": "address"},
+        ],
+        "name": "allowance",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "constant": True,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [{"name": "", "type": "uint8"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "constant": False,
+        "inputs": [
+            {"name": "_spender", "type": "address"},
+            {"name": "_value", "type": "uint256"},
+        ],
+        "name": "approve",
+        "outputs": [{"name": "", "type": "bool"}],
+        "payable": False,
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+]
+
+
+def get_token_decimals(token_address):
+    if not token_address or token_address == NATIVE_TOKEN:
+        return 18
+    try:
+        erc20 = Contract(token_address, abi=ERC20_ABI)
+        return erc20.decimals()
+    except Exception:
+        return 18
+
 
 @click.command()
 @click.argument("account_name")
@@ -67,6 +122,18 @@ def cli(account_name, input_json, contract_address, network):
             if w["prizeToken"] != first_prize_token:
                 print(f"Error: Winner [{i}] prizeToken ({w['prizeToken']}) does not match first winner prizeToken ({first_prize_token}). All winners in a competition must use the same prize token.")
                 return
+
+        listing_token_prize_address = contract.listingTokenPrizeContract()
+        listing_token_prize = project.ListingTokenPrizeContract.at(listing_token_prize_address)
+        print(f"Listing Token Prize Contract : {listing_token_prize.address}")
+
+        listed_token = listing_token_prize.listingToken(first_prize_token)
+        if listed_token.id == 0:
+            print(f"Error: Prize token ({first_prize_token}) is not listed in ListingTokenPrizeContract.")
+            return
+        if not listed_token.isActive:
+            print(f"Error: Prize token ({first_prize_token}) is listed but deactivated in ListingTokenPrizeContract.")
+            return
 
         if fee_token == NATIVE_TOKEN:
             print("Fee Token     : Native Token")
@@ -143,13 +210,16 @@ def cli(account_name, input_json, contract_address, network):
             competition.get("guideBookCID", ""),
         )
 
-        def parse_prize_wei(val):
+        prize_token_decimals = get_token_decimals(first_prize_token)
+        fee_token_decimals = get_token_decimals(fee_token)
+
+        def parse_prize_wei(val, decimals=18):
             f_val = float(val)
-            return int(f_val * 10**18) if f_val < 10**9 else int(f_val)
+            return int(f_val * 10**decimals) if f_val < 10**9 else int(f_val)
 
         winners_input = []
         for w in winners_data:
-            prize_amount_wei = parse_prize_wei(w["prizeAmount"])
+            prize_amount_wei = parse_prize_wei(w["prizeAmount"], prize_token_decimals)
             winners_input.append((
                 0,
                 0,
@@ -185,15 +255,15 @@ def cli(account_name, input_json, contract_address, network):
         print(f"Winners ({len(winners_data)} total)")
         print(f"{'='*50}")
         for i, w in enumerate(winners_data):
-            prize_amount_wei = parse_prize_wei(w["prizeAmount"])
+            prize_amount_wei = parse_prize_wei(w["prizeAmount"], prize_token_decimals)
             print(f"  [{i}] {w['title']}")
             print(f"    Prize Token : {'Native Token' if w['prizeToken'] == NATIVE_TOKEN else w['prizeToken']}")
-            print(f"    Prize Amount: {prize_amount_wei / 10**18} ({prize_amount_wei} wei)")
+            print(f"    Prize Amount: {prize_amount_wei / 10**prize_token_decimals} ({prize_amount_wei} wei)")
             print(f"    Certificate : ipfs://{w['certificateCID']}")
 
         print("\nCreating competition...")
 
-        total_prize_amount = sum(parse_prize_wei(w["prizeAmount"]) for w in winners_data)
+        total_prize_amount = sum(parse_prize_wei(w["prizeAmount"], prize_token_decimals) for w in winners_data)
         required_native = 0
         if treasury_fee > 0 and fee_token == NATIVE_TOKEN:
             required_native += treasury_fee
@@ -202,11 +272,18 @@ def cli(account_name, input_json, contract_address, network):
 
         tx_kwargs = {"sender": akun}
         if required_native > 0:
+            if akun.balance < required_native:
+                print(f"Error: Account {akun.address} has insufficient Native Token balance ({akun.balance / 10**18} ETH). Required: {required_native / 10**18} ETH.")
+                return
             tx_kwargs["value"] = required_native
 
         if treasury_fee > 0 and fee_token != NATIVE_TOKEN:
             treasury_address = contract.treasuryPlatformContract()
-            erc20 = Contract(fee_token)
+            erc20 = Contract(fee_token, abi=ERC20_ABI)
+            fee_token_balance = erc20.balanceOf(effective_org)
+            if fee_token_balance < treasury_fee:
+                print(f"Error: Account {effective_org} has insufficient balance of Fee Token ({fee_token}). Balance: {fee_token_balance / 10**fee_token_decimals}, Required: {treasury_fee / 10**fee_token_decimals}.")
+                return
             allowance = erc20.allowance(effective_org, treasury_address)
             if allowance < treasury_fee:
                 if effective_org == akun.address:
@@ -217,7 +294,11 @@ def cli(account_name, input_json, contract_address, network):
 
         if total_prize_amount > 0 and first_prize_token != NATIVE_TOKEN:
             treasury_prize_address = contract.treasuryPrizeContract()
-            erc20_prize = Contract(first_prize_token)
+            erc20_prize = Contract(first_prize_token, abi=ERC20_ABI)
+            prize_token_balance = erc20_prize.balanceOf(effective_org)
+            if prize_token_balance < total_prize_amount:
+                print(f"Error: Account {effective_org} has insufficient balance of Prize Token ({first_prize_token}). Balance: {prize_token_balance / 10**prize_token_decimals}, Required: {total_prize_amount / 10**prize_token_decimals}.")
+                return
             allowance_prize = erc20_prize.allowance(effective_org, treasury_prize_address)
             if allowance_prize < total_prize_amount:
                 if effective_org == akun.address:
