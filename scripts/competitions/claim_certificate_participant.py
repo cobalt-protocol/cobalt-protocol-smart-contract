@@ -91,7 +91,7 @@ def cli(account_name, competition_id, contract_address, network):
             print(f"Error: Competition ID {competition_id} has not ended yet.")
             return
 
-        certificate_uri = f"ipfs://{comp.certificateCID}"
+        certificate_uri = f"ipfs://{comp.certificateCID}" if comp.certificateCID else ""
 
         print(f"\n{'='*50}")
         print("Claim Certificate Participant")

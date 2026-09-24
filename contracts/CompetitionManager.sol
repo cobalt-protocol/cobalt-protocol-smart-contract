@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "./TreasuryPlatform.sol";
 import "./ListingTokenPrize.sol";
 import "./PriceCompetitionManager.sol";
@@ -13,6 +14,9 @@ contract CompetitionManager is Ownable {
     ListingTokenPrizeContract public listingTokenPrizeContract;
     PriceCompetitionManager public priceCompetitionManagerContract;
     TreasuryPrize public treasuryPrizeContract;
+
+    string public constant FORMATION_1_3_MEMBER = "1-3 member";
+    string public constant FORMATION_1_5_MEMBER = "1-5 member";
 
     struct CompetitionSchedule {
         uint256 registrationWindow;
@@ -29,6 +33,7 @@ contract CompetitionManager is Ownable {
         string category;
         string description;
         string requirements;
+        string formation;
         address organization;
         CompetitionSchedule schedule;
         string certificateCID;
@@ -91,10 +96,12 @@ contract CompetitionManager is Ownable {
             competitions[_competition_id].id != 0,
             "Competition does not exist"
         );
+
         require(
             competitions[_competition_id].organization == _address_organization,
             "Not organization"
         );
+
         _;
     }
 
@@ -103,11 +110,13 @@ contract CompetitionManager is Ownable {
             competitions[_competitionId].id != 0,
             "Competition does not exist"
         );
+
         require(
             block.timestamp >=
                 competitions[_competitionId].schedule.prizeCertificateClaim,
             "Competition is not ended"
         );
+
         _;
     }
 
@@ -121,11 +130,24 @@ contract CompetitionManager is Ownable {
         priceCompetitionManagerContract = PriceCompetitionManager(
             _priceCompetitionManagerAddress
         );
+
         treasuryPlatformContract = TreasuryPlatform(_treasuryPlatformAddress);
+
         listingTokenPrizeContract = ListingTokenPrizeContract(
             _listingTokenPrizeAddress
         );
+
         treasuryPrizeContract = TreasuryPrize(_treasuryPrizeAddress);
+    }
+
+    function isValidFormation(
+        string memory _formation
+    ) public pure returns (bool) {
+        return
+            keccak256(bytes(_formation)) ==
+            keccak256(bytes(FORMATION_1_3_MEMBER)) ||
+            keccak256(bytes(_formation)) ==
+            keccak256(bytes(FORMATION_1_5_MEMBER));
     }
 
     function createCompetition(
@@ -137,6 +159,9 @@ contract CompetitionManager is Ownable {
             _competition.schedule.prizeCertificateClaim > block.timestamp,
             "Invalid end time"
         );
+
+        require(isValidFormation(_competition.formation), "Invalid formation");
+
         require(_winners.length > 0, "Must have at least one winner");
 
         address sender = _competition.organization == address(0)
@@ -146,6 +171,7 @@ contract CompetitionManager is Ownable {
         competitionId++;
 
         competitions[competitionId] = _competition;
+
         competitions[competitionId].id = competitionId;
         competitions[competitionId].organization = sender;
 
@@ -157,7 +183,9 @@ contract CompetitionManager is Ownable {
 
         uint256 fee = platformFee.treasuryFee;
         address feeToken = platformFee.tokenAddress;
+
         uint256 totalPrizeAmount = 0;
+
         address firstPrizeToken = _winners[0].prizeToken;
 
         for (uint256 i = 0; i < _winners.length; i++) {
@@ -165,6 +193,7 @@ contract CompetitionManager is Ownable {
                 _winners[i].prizeAmount > 0,
                 "Prize must be greater than 0"
             );
+
             require(
                 _winners[i].prizeToken == firstPrizeToken,
                 "Prize token must be the same for all winners"
@@ -180,11 +209,13 @@ contract CompetitionManager is Ownable {
                 listedTokenAddress == _winners[i].prizeToken,
                 "Prize token is not listed"
             );
+
             require(isPrizeTokenActive, "Prize token is not active");
 
             totalPrizeAmount += _winners[i].prizeAmount;
 
             winnerId++;
+
             Winners memory newWinner = Winners({
                 id: winnerId,
                 competitionId: competitionId,
@@ -195,6 +226,7 @@ contract CompetitionManager is Ownable {
             });
 
             winners[competitionId].push(newWinner);
+
             winnerById[winnerId] = newWinner;
         }
 
@@ -209,9 +241,11 @@ contract CompetitionManager is Ownable {
         );
 
         uint256 requiredNative = 0;
+
         if (fee > 0 && feeToken == address(0)) {
             requiredNative += fee;
         }
+
         if (firstPrizeToken == address(0)) {
             requiredNative += totalPrizeAmount;
         }
@@ -228,6 +262,7 @@ contract CompetitionManager is Ownable {
             } else {
                 treasuryPlatformContract.addTreasuryFrom(sender, feeToken, fee);
             }
+
             emit CompetitionFeePaid(competitionId, sender, feeToken, fee);
         }
 
@@ -235,6 +270,7 @@ contract CompetitionManager is Ownable {
             uint256 nativePrizeValue = firstPrizeToken == address(0)
                 ? totalPrizeAmount
                 : 0;
+
             treasuryPrizeContract.addTreasury{value: nativePrizeValue}(
                 TreasuryPrize.TreasuryPrize({
                     id: 0,
@@ -254,6 +290,7 @@ contract CompetitionManager is Ownable {
         uint256 _competition_id
     ) external onlyOrganization(msg.sender, _competition_id) {
         require(winnerById[_winnerId].id != 0, "Winner does not exist");
+
         require(
             winnerById[_winnerId].competitionId == _competition_id,
             "Winner does not belong to this competition"
@@ -279,6 +316,7 @@ contract CompetitionManager is Ownable {
                 participant: _participant
             })
         );
+
         treasuryPrizeContract.payout(
             _competition_id,
             payable(_participant),
@@ -306,6 +344,7 @@ contract CompetitionManager is Ownable {
         address _organization
     ) external view returns (Competitions[] memory) {
         uint256 count = 0;
+
         for (uint256 i = 1; i <= competitionId; i++) {
             if (competitions[i].organization == _organization) {
                 count++;
@@ -313,7 +352,9 @@ contract CompetitionManager is Ownable {
         }
 
         Competitions[] memory result = new Competitions[](count);
+
         uint256 index = 0;
+
         for (uint256 i = 1; i <= competitionId; i++) {
             if (competitions[i].organization == _organization) {
                 result[index] = competitions[i];
@@ -330,9 +371,11 @@ contract CompetitionManager is Ownable {
         returns (Competitions[] memory)
     {
         Competitions[] memory result = new Competitions[](competitionId);
+
         for (uint256 i = 1; i <= competitionId; i++) {
             result[i - 1] = competitions[i];
         }
+
         return result;
     }
 
@@ -346,6 +389,7 @@ contract CompetitionManager is Ownable {
         uint256 _winnerId
     ) external view returns (Winners memory) {
         require(winnerById[_winnerId].id != 0, "Winner does not exist");
+
         return winnerById[_winnerId];
     }
 

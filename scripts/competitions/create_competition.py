@@ -197,6 +197,7 @@ def cli(account_name, input_json, contract_address, network):
 
         org_setting = competition.get("organization", NATIVE_TOKEN)
         effective_org = akun.address if not org_setting or org_setting == NATIVE_TOKEN else org_setting
+        formation_input = competition.get("formation", "1-3 member")
 
         competition_input = (
             0,
@@ -204,6 +205,7 @@ def cli(account_name, input_json, contract_address, network):
             competition["category"],
             competition["description"],
             competition["requirements"],
+            formation_input,
             org_setting,
             schedule_tuple,
             competition["certificateCID"],
@@ -238,6 +240,7 @@ def cli(account_name, input_json, contract_address, network):
         print(f"Category    : {competition['category']}")
         print(f"Description : {competition['description']}")
         print(f"Requirements: {competition['requirements']}")
+        print(f"Formation   : {formation_input}")
         print(f"Organization: {effective_org}")
         print(f"Duration    : {duration_desc}")
         print(f"Schedule    :")

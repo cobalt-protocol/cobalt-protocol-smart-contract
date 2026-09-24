@@ -26,6 +26,7 @@ def display_competition(contract, comp):
     print(f"Category    : {comp.category}")
     print(f"Description : {comp.description}")
     print(f"Requirements: {comp.requirements}")
+    print(f"Formation   : {comp.formation}")
     print(f"Organization: {comp.organization}")
     print(f"Schedule    :")
     print(f"  Registration Window    : {sched.registrationWindow if hasattr(sched, 'registrationWindow') else sched[0]}")
@@ -47,7 +48,7 @@ def display_competition(contract, comp):
             prize_eth = w.prizeAmount / 10**18
             token_label = "Native Token" if w.prizeToken == NATIVE_TOKEN else w.prizeToken
             print(f"  [{index}] {w.title}")
-            print(f"    Winner ID   : {w.winnerId}")
+            print(f"    Winner ID   : {w.id}")
             print(f"    Prize Token : {token_label}")
             print(f"    Prize Amount: {prize_eth} ({w.prizeAmount} wei)")
             print(f"    Certificate : ipfs://{w.certificateCID}")

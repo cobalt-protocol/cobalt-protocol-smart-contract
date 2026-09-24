@@ -44,7 +44,7 @@ def cli(account_name, winner_id, contract_address, network):
         print(f"Winner (ID #{winner_id})")
         print(f"{'='*50}")
         print(f"  Competition ID: {w.competitionId}")
-        print(f"  Winner ID     : {w.winnerId}")
+        print(f"  Winner ID     : {w.id}")
         print(f"  Title         : {w.title}")
         print(f"  Prize Token   : {w.prizeToken}")
         print(f"  Prize Amount  : {prize_eth} ({w.prizeAmount} wei)")

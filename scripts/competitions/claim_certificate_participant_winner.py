@@ -97,13 +97,13 @@ def cli(account_name, winner_id, contract_address, network):
             print(f"Error: Competition ID {winner.competitionId} has not ended yet.")
             return
 
-        certificate_uri = f"ipfs://{winner.certificateCID}"
+        certificate_uri = f"ipfs://{winner.certificateCID}" if winner.certificateCID else ""
 
         print(f"\n{'='*50}")
         print("Claim Certificate Participant Winner")
         print(f"{'='*50}")
         print(f"Competition    : #{comp.id} - {comp.name}")
-        print(f"Winner ID      : #{winner.winnerId} - {winner.title}")
+        print(f"Winner ID      : #{winner.id} - {winner.title}")
         print(f"Organization   : {comp.organization}")
         print(f"Participant    : {akun.address}")
         print(f"Certificate URI: {certificate_uri}")
