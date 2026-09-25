@@ -233,23 +233,15 @@ def cli(account_name, input_json, contract_address, network):
         except Exception:
             chain_now_ts = int(datetime.now(timezone.utc).timestamp())
 
-        if "durationInSeconds" in competition:
-            duration_seconds = competition["durationInSeconds"]
-            if duration_seconds < 60:
-                duration_seconds = 60
-            duration_desc = f"{duration_seconds} seconds"
-            end_at_ts = chain_now_ts + duration_seconds
-        elif "durationInDays" in competition:
-            duration_days = competition["durationInDays"]
-            duration_desc = f"{duration_days} days"
-            end_at_ts = chain_now_ts + (duration_days * 86400)
-        else:
-            duration_desc = "300 seconds"
-            end_at_ts = chain_now_ts + 300
-
-        prize_claim = competition.get("prizeCertificateClaim") or end_at_ts
-        if prize_claim <= chain_now_ts:
-            prize_claim = end_at_ts
+        # Timeline schedule with 5 seconds step for each stage starting from chain_now_ts
+        interval_seconds = 5
+        reg_window = chain_now_ts + interval_seconds
+        comp_window = reg_window + interval_seconds
+        sub_deadline = comp_window + interval_seconds
+        judging_review = sub_deadline + interval_seconds
+        result_announcement = judging_review + interval_seconds
+        prize_claim = result_announcement + interval_seconds
+        duration_desc = "30 seconds (5s intervals)"
 
         org_setting = competition.get("organization", NATIVE_TOKEN)
         effective_org = akun.address if not org_setting or org_setting == NATIVE_TOKEN else org_setting
@@ -285,14 +277,14 @@ def cli(account_name, input_json, contract_address, network):
             "description": competition.get("description", ""),
             "requirements": competition.get("requirements", ""),
             "formation": formation_input,
-            "schedule": competition.get("schedule", {
-                "registrationWindow": 0,
-                "competitionWindow": 0,
-                "submissionDeadline": 0,
-                "judgingReview": 0,
-                "resultAnnouncement": 0,
+            "schedule": {
+                "registrationWindow": reg_window,
+                "competitionWindow": comp_window,
+                "submissionDeadline": sub_deadline,
+                "judgingReview": judging_review,
+                "resultAnnouncement": result_announcement,
                 "prizeCertificateClaim": prize_claim,
-            }),
+            },
             "certificateCID": competition.get("certificateCID", ""),
             "guideBookCID": competition.get("guideBookCID", ""),
             "winners": [
@@ -347,14 +339,18 @@ def cli(account_name, input_json, contract_address, network):
         claim_dt = datetime.fromtimestamp(prize_claim, tz=timezone.utc)
 
         print(f"\n{'='*50}")
-        print("Competition Details")
+        print("Competition Details & Schedule (5s Intervals)")
         print(f"{'='*50}")
-        print(f"CID         : ipfs://{comp_cid}")
-        print(f"Formation   : {formation_input}")
-        print(f"Organization: {effective_org}")
-        print(f"Duration    : {duration_desc}")
-        print(f"Prize Certificate Claim: {claim_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} ({prize_claim})")
-        print(f"Certificate : ipfs://{competition['certificateCID']}")
+        print(f"CID                     : ipfs://{comp_cid}")
+        print(f"Formation               : {formation_input}")
+        print(f"Organization            : {effective_org}")
+        print(f"Registration Window End : {datetime.fromtimestamp(reg_window, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ({reg_window})")
+        print(f"Competition Window End  : {datetime.fromtimestamp(comp_window, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ({comp_window})")
+        print(f"Submission Deadline     : {datetime.fromtimestamp(sub_deadline, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ({sub_deadline})")
+        print(f"Judging Review End      : {datetime.fromtimestamp(judging_review, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ({judging_review})")
+        print(f"Result Announcement     : {datetime.fromtimestamp(result_announcement, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ({result_announcement})")
+        print(f"Prize Certificate Claim : {claim_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} ({prize_claim})")
+        print(f"Certificate             : ipfs://{competition['certificateCID']}")
 
         print(f"\n{'='*50}")
         print(f"Winners ({len(winners_data)} total)")
