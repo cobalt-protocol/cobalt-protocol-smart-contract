@@ -14,6 +14,7 @@ ape run accounts generate_account --network <NETWORK>
 #   --token <ADDRESS>   Token address (default: 0x0000000000000000000000000000000000000000 for Native Token)
 ape run accounts check_balance <ACCOUNT_NAME> --network <NETWORK>
 ape run accounts check_balance platform --network bot_chain:bot_chain_test_net:node
+ape run accounts check_balance platform --network bot_chain:bot_chain_main_net:node
 ape run accounts check_balance organization --token 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
 
 # ------------------------------------------------------------------------------
@@ -27,6 +28,10 @@ ape run accounts check_balance organization --token 0x75edC9335175Fc0552D51D4843
 # Option A: Deploy with auto-listing Native Token & default Free Tier fee (Recommended)
 ape run deploy_contract <PLATFORM_ACCOUNT_NAME> <SIGNER_ACCOUNT_NAME> <ORGANIZATION_ACCOUNT_NAME> --auto-listing --network <NETWORK>
 ape run deploy_contract platform signer organization --auto-listing --network bot_chain:bot_chain_test_net:node
+ape run deploy_contract platform signer organization --no-auto-listing --network bot_chain:bot_chain_test_net:node
+ape run deploy_contract platform signer organization --network bot_chain:bot_chain_main_net:node
+ape run setup_platform platform --network bot_chain:bot_chain_main_net:node
+
 
 # Option B: Deploy without auto-listing
 ape run deploy_contract <PLATFORM_ACCOUNT_NAME> <SIGNER_ACCOUNT_NAME> <ORGANIZATION_ACCOUNT_NAME> --no-auto-listing --network <NETWORK>

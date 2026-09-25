@@ -24,8 +24,15 @@ networks:
       ecosystem: bot_chain
       base_ecosystem_plugin: ethereum
       default_provider: node
+    - name: bot_chain_main_net
+      chain_id: 677
+      ecosystem: bot_chain
+      base_ecosystem_plugin: ethereum
+      default_provider: node
 
 node:
   bot_chain:
     bot_chain_test_net:
       uri: https://rpc.bohr.life
+    bot_chain_main_net:
+      uri: https://rpc.botchain.ai
