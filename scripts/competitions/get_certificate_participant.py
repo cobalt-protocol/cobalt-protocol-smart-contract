@@ -14,14 +14,14 @@ load_dotenv()
     "--contract",
     "contract_address",
     default=None,
-    help="Contract address (default: CERTIFICATE_MANAGER_CONTRACT from .env)",
+    help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
 def cli(account_name, certificate_id, contract_address, network):
-    contract_address = contract_address or os.getenv("CERTIFICATE_MANAGER_CONTRACT")
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("CERTIFICATE_MANAGER_CONTRACT")
     if not contract_address:
         print(
-            "Error: Contract address not provided and CERTIFICATE_MANAGER_CONTRACT not set in .env"
+            "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
         )
         return
 
@@ -39,7 +39,7 @@ def cli(account_name, certificate_id, contract_address, network):
         print(f"Caller      : {akun.address}")
         print(f"Balance     : {saldo_eth} {token_symbol}")
 
-        contract = project.CertificateManager.at(contract_address)
+        contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
 
         print(f"\nFetching certificate participant ID {certificate_id}...")
@@ -54,15 +54,12 @@ def cli(account_name, certificate_id, contract_address, network):
             print(f"Error: Certificate participant ID {certificate_id} does not exist.")
             return
 
-        competition_manager_address = contract.competitionManagerContract()
-        competition_contract = project.CompetitionManager.at(competition_manager_address)
-        comp = competition_contract.getCompetition(cert.competitionId)
+        comp = contract.getCompetition(cert.competitionId)
 
         print(f"\n{'='*50}")
         print(f"Certificate Participant #{cert.id}")
         print(f"{'='*50}")
         print(f"Certificate ID : {cert.id}")
         print(f"Competition ID : {cert.competitionId}")
-        print(f"Competition    : {comp.name}")
         print(f"Participant    : {cert.participant}")
 

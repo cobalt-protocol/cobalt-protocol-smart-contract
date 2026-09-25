@@ -16,8 +16,8 @@
       "prizeCertificateClaim": 0
     },
     "treasuryToken": "0x0000000000000000000000000000000000000000",
-    "certificateCID": "QmCertificateCID123",
-    "guideBookCID": "QmGuideBookCID123",
+    "certificateCID": "QmbXjYe8etBkpPbuuXzMj7dyc7dpGbHY8GSauL1Em7D9Ay",
+    "guideBookCID": "QmQVXAukDkho9L84gNZTgXNviny3gqyegNDP32DXk5kicx",
     "platformFeeId": 1
   },
   "winners": [
@@ -25,19 +25,19 @@
       "title": "1st Place",
       "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
       "prizeAmount": 1,
-      "certificateCID": "QmWinnerCertCID123"
+      "certificateCID": "QmbXjYe8etBkpPbuuXzMj7dyc7dpGbHY8GSauL1Em7D9Ay"
     },
     {
       "title": "2nd Place",
       "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
       "prizeAmount": 2,
-      "certificateCID": "QmWinnerCertCID456"
+      "certificateCID": "QmbXjYe8etBkpPbuuXzMj7dyc7dpGbHY8GSauL1Em7D9Ay"
     },
     {
       "title": "3rd Place",
       "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
       "prizeAmount": 3,
-      "certificateCID": "QmWinnerCertCID789"
+      "certificateCID": "QmbXjYe8etBkpPbuuXzMj7dyc7dpGbHY8GSauL1Em7D9Ay"
     }
   ]
 }

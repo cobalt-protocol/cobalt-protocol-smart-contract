@@ -48,7 +48,7 @@ def cli(account_name, competition_id, contract_address, network):
             for i, w in enumerate(winners_list):
                 prize_eth = w.prizeAmount / 10**18
                 token_label = "Native Token" if w.prizeToken == NATIVE_TOKEN else w.prizeToken
-                print(f"  [{i}] {w.title}")
+                print(f"  [{i}] Winner #{w.id}")
                 print(f"    Winner ID   : {w.id}")
                 print(f"    Prize Token : {token_label}")
                 print(f"    Prize Amount: {prize_eth} ({w.prizeAmount} wei)")

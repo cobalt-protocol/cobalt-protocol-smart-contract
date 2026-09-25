@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
 import json
 import os
 from datetime import datetime, timezone, timedelta
 
 import click
+import requests
 from ape import accounts, networks, project, Contract
 from dotenv import load_dotenv
 
@@ -56,6 +58,97 @@ ERC20_ABI = [
 ]
 
 
+upload_cache = {}
+
+
+def upload_file_to_kubo_ipfs(file_path: str, endpoint: str = None) -> str:
+    abs_path = os.path.abspath(file_path)
+    if abs_path in upload_cache:
+        return upload_cache[abs_path]
+
+    if endpoint is None:
+        base_url = os.getenv("KUBO_API_URL", "http://localhost:5001").rstrip("/")
+        endpoint = f"{base_url}/api/v0/add"
+
+    if not os.path.exists(file_path):
+        print(f"Warning: File '{file_path}' not found.")
+        return ""
+
+    filename = os.path.basename(file_path)
+    with open(file_path, "rb") as f:
+        files = {"file": (filename, f.read())}
+
+    try:
+        response = requests.post(endpoint, files=files, timeout=30)
+        response.raise_for_status()
+        result = response.json()
+        cid = result.get("Hash")
+        if cid:
+            upload_cache[abs_path] = cid
+            return cid
+        raise ValueError(f"No Hash in Kubo response: {result}")
+    except Exception as e:
+        print(f"Warning: Failed to upload file '{file_path}' to Kubo IPFS ({endpoint}): {e}")
+        return ""
+
+
+def upload_to_kubo_ipfs(data: dict, endpoint: str = None) -> str:
+    if endpoint is None:
+        base_url = os.getenv("KUBO_API_URL", "http://localhost:5001").rstrip("/")
+        endpoint = f"{base_url}/api/v0/add"
+
+    json_bytes = json.dumps(data, indent=2).encode("utf-8")
+    files = {"file": ("competition_metadata.json", json_bytes, "application/json")}
+
+    try:
+        response = requests.post(endpoint, files=files, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        cid = result.get("Hash")
+        if cid:
+            return cid
+        raise ValueError(f"No Hash in Kubo response: {result}")
+    except Exception as e:
+        print(f"Warning: Failed to upload to Kubo IPFS ({endpoint}): {e}")
+        return ""
+
+
+def is_dummy_cid(val: str) -> bool:
+    if not val or not isinstance(val, str):
+        return True
+    val = val.strip()
+    if not val:
+        return True
+    if os.path.exists(val):
+        return True
+    if "CID" in val or "dummy" in val.lower() or val.startswith("QmDefault") or len(val) < 30:
+        return True
+    return False
+
+
+def resolve_or_upload_file_cid(input_val: str, default_file_path: str, file_label: str) -> str:
+    if input_val and os.path.exists(input_val):
+        print(f"Uploading {file_label} file '{input_val}' to Kubo IPFS...")
+        cid = upload_file_to_kubo_ipfs(input_val)
+        if cid:
+            print(f"Uploaded {file_label} CID: {cid}")
+            return cid
+
+    if is_dummy_cid(input_val):
+        if os.path.exists(default_file_path):
+            print(f"Uploading default {file_label} file ({os.path.basename(default_file_path)}) to Kubo IPFS...")
+            cid = upload_file_to_kubo_ipfs(default_file_path)
+            if cid:
+                print(f"Uploaded {file_label} CID: {cid}")
+                return cid
+            else:
+                print(f"Warning: Failed to upload default {file_label} file to Kubo IPFS.")
+        else:
+            print(f"Warning: Default {file_label} file not found at '{default_file_path}'.")
+
+    return input_val
+
+
 def get_token_decimals(token_address):
     if not token_address or token_address == NATIVE_TOKEN:
         return 18
@@ -94,10 +187,6 @@ def cli(account_name, input_json, contract_address, network):
         contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
 
-        price_competition_manager_address = contract.priceCompetitionManagerContract()
-        price_competition_manager = project.PriceCompetitionManager.at(price_competition_manager_address)
-        print(f"Price Competition Manager : {price_competition_manager.address}")
-
         with open(input_json, "r") as f:
             data = json.load(f)
 
@@ -105,9 +194,9 @@ def cli(account_name, input_json, contract_address, network):
         winners_data = data["winners"]
         platform_fee_id = competition.get("platformFeeId", 1)
 
-        fee_data = price_competition_manager.getPriceCompetitionFee(platform_fee_id)
+        fee_data = contract.getPriceCompetitionFee(platform_fee_id)
         if fee_data.id == 0:
-            print(f"Error: Fee option ID {platform_fee_id} does not exist in PriceCompetitionManager.")
+            print(f"Error: Fee option ID {platform_fee_id} does not exist in CompetitionManager.")
             return
 
         treasury_fee = fee_data.treasuryFee
@@ -123,16 +212,12 @@ def cli(account_name, input_json, contract_address, network):
                 print(f"Error: Winner [{i}] prizeToken ({w['prizeToken']}) does not match first winner prizeToken ({first_prize_token}). All winners in a competition must use the same prize token.")
                 return
 
-        listing_token_prize_address = contract.listingTokenPrizeContract()
-        listing_token_prize = project.ListingTokenPrizeContract.at(listing_token_prize_address)
-        print(f"Listing Token Prize Contract : {listing_token_prize.address}")
-
-        listed_token = listing_token_prize.listingToken(first_prize_token)
+        listed_token = contract.listingToken(first_prize_token)
         if listed_token.id == 0:
-            print(f"Error: Prize token ({first_prize_token}) is not listed in ListingTokenPrizeContract.")
+            print(f"Error: Prize token ({first_prize_token}) is not listed in CompetitionManager.")
             return
         if not listed_token.isActive:
-            print(f"Error: Prize token ({first_prize_token}) is listed but deactivated in ListingTokenPrizeContract.")
+            print(f"Error: Prize token ({first_prize_token}) is listed but deactivated in CompetitionManager.")
             return
 
         if fee_token == NATIVE_TOKEN:
@@ -140,7 +225,7 @@ def cli(account_name, input_json, contract_address, network):
         else:
             print(f"Fee Token     : {fee_token}")
 
-        print(f"Fee Option ID : {platform_fee_id} ({fee_data.title} - {fee_data.description})")
+        print(f"Fee Option ID : {platform_fee_id} (CID: {fee_data.cid})")
         print(f"Treasury Fee  : {treasury_fee / 10**18} ({treasury_fee} wei)")
 
         try:
@@ -162,54 +247,83 @@ def cli(account_name, input_json, contract_address, network):
             duration_desc = "300 seconds"
             end_at_ts = chain_now_ts + 300
 
-        if "schedule" in competition and isinstance(competition["schedule"], dict):
-            sched = competition["schedule"]
-            reg_window = sched.get("registrationWindow") or chain_now_ts
-            comp_window = sched.get("competitionWindow") or chain_now_ts
-            sub_deadline = sched.get("submissionDeadline") or end_at_ts
-            judging = sched.get("judgingReview") or end_at_ts
-            announcement = sched.get("resultAnnouncement") or end_at_ts
-            prize_claim = sched.get("prizeCertificateClaim") or end_at_ts
-
-            if prize_claim <= chain_now_ts:
-                prize_claim = end_at_ts
-                sub_deadline = end_at_ts
-                judging = end_at_ts
-                announcement = end_at_ts
-                reg_window = chain_now_ts
-                comp_window = chain_now_ts
-        else:
-            reg_window = chain_now_ts
-            comp_window = chain_now_ts
-            sub_deadline = end_at_ts
-            judging = end_at_ts
-            announcement = end_at_ts
+        prize_claim = competition.get("prizeCertificateClaim") or end_at_ts
+        if prize_claim <= chain_now_ts:
             prize_claim = end_at_ts
-
-        schedule_tuple = (
-            reg_window,
-            comp_window,
-            sub_deadline,
-            judging,
-            announcement,
-            prize_claim,
-        )
 
         org_setting = competition.get("organization", NATIVE_TOKEN)
         effective_org = akun.address if not org_setting or org_setting == NATIVE_TOKEN else org_setting
         formation_input = competition.get("formation", "1-3 member")
 
+        SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+        DEFAULT_CERT_FILE = os.path.join(SCRIPT_DIR, "1600w-CzqD3cdSM08.webp")
+        DEFAULT_GUIDEBOOK_FILE = os.path.join(SCRIPT_DIR, "2. Tugas Studi Kasus  Skema programmer-Dapur Ina Aina.pdf")
+
+        # Resolve/upload competition certificate CID
+        comp_cert_input = competition.get("certificateCID", "")
+        comp_cert_cid = resolve_or_upload_file_cid(comp_cert_input, DEFAULT_CERT_FILE, "Competition Certificate")
+        if comp_cert_cid:
+            competition["certificateCID"] = comp_cert_cid
+
+        # Resolve/upload competition guidebook CID
+        guidebook_input = competition.get("guideBookCID", "")
+        guidebook_cid = resolve_or_upload_file_cid(guidebook_input, DEFAULT_GUIDEBOOK_FILE, "Guidebook")
+        if guidebook_cid:
+            competition["guideBookCID"] = guidebook_cid
+
+        # Resolve/upload winner certificate CIDs
+        for i, w in enumerate(winners_data):
+            w_cert_input = w.get("certificateCID", "")
+            w_cert_cid = resolve_or_upload_file_cid(w_cert_input, DEFAULT_CERT_FILE, f"Winner #{i+1} Certificate")
+            if w_cert_cid:
+                w["certificateCID"] = w_cert_cid
+
+        # Collect off-chain attributes matching reference commit 62dcb3aede2516c5756f76648a7382cf9e80bd54
+        metadata_payload = {
+            "name": competition.get("name", ""),
+            "category": competition.get("category", ""),
+            "description": competition.get("description", ""),
+            "requirements": competition.get("requirements", ""),
+            "formation": formation_input,
+            "schedule": competition.get("schedule", {
+                "registrationWindow": 0,
+                "competitionWindow": 0,
+                "submissionDeadline": 0,
+                "judgingReview": 0,
+                "resultAnnouncement": 0,
+                "prizeCertificateClaim": prize_claim,
+            }),
+            "certificateCID": competition.get("certificateCID", ""),
+            "guideBookCID": competition.get("guideBookCID", ""),
+            "winners": [
+                {
+                    "title": w.get("title", f"Winner #{i+1}"),
+                    "prizeToken": w.get("prizeToken"),
+                    "prizeAmount": w.get("prizeAmount"),
+                    "certificateCID": w.get("certificateCID", ""),
+                }
+                for i, w in enumerate(winners_data)
+            ],
+        }
+
+        comp_cid = competition.get("cid", "")
+        if not comp_cid or any(k in competition for k in ["name", "category", "description", "requirements", "schedule", "guideBookCID"]):
+            print("\nUploading competition metadata to Kubo IPFS (http://localhost:5001/api/v0/add)...")
+            uploaded_cid = upload_to_kubo_ipfs(metadata_payload)
+            if uploaded_cid:
+                comp_cid = uploaded_cid
+                print(f"Uploaded Metadata CID: {comp_cid}")
+            else:
+                print("Warning: Kubo upload failed or returned empty Hash. Using fallback CID.")
+                comp_cid = comp_cid or "QmDefaultCompetitionMetadataCID"
+
         competition_input = (
             0,
-            competition["name"],
-            competition["category"],
-            competition["description"],
-            competition["requirements"],
+            comp_cid,
             formation_input,
             org_setting,
-            schedule_tuple,
+            prize_claim,
             competition["certificateCID"],
-            competition.get("guideBookCID", ""),
         )
 
         prize_token_decimals = get_token_decimals(first_prize_token)
@@ -225,7 +339,6 @@ def cli(account_name, input_json, contract_address, network):
             winners_input.append((
                 0,
                 0,
-                w["title"],
                 w["prizeToken"],
                 prize_amount_wei,
                 w["certificateCID"],
@@ -236,30 +349,20 @@ def cli(account_name, input_json, contract_address, network):
         print(f"\n{'='*50}")
         print("Competition Details")
         print(f"{'='*50}")
-        print(f"Name        : {competition['name']}")
-        print(f"Category    : {competition['category']}")
-        print(f"Description : {competition['description']}")
-        print(f"Requirements: {competition['requirements']}")
+        print(f"CID         : ipfs://{comp_cid}")
         print(f"Formation   : {formation_input}")
         print(f"Organization: {effective_org}")
         print(f"Duration    : {duration_desc}")
-        print(f"Schedule    :")
-        print(f"  Registration Window    : {reg_window}")
-        print(f"  Competition Window     : {comp_window}")
-        print(f"  Submission Deadline    : {sub_deadline}")
-        print(f"  Judging Review         : {judging}")
-        print(f"  Result Announcement    : {announcement}")
-        print(f"  Prize Certificate Claim: {claim_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} ({prize_claim})")
+        print(f"Prize Certificate Claim: {claim_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} ({prize_claim})")
         print(f"Certificate : ipfs://{competition['certificateCID']}")
-        if competition.get("guideBookCID"):
-            print(f"Guidebook   : ipfs://{competition['guideBookCID']}")
 
         print(f"\n{'='*50}")
         print(f"Winners ({len(winners_data)} total)")
         print(f"{'='*50}")
         for i, w in enumerate(winners_data):
             prize_amount_wei = parse_prize_wei(w["prizeAmount"], prize_token_decimals)
-            print(f"  [{i}] {w['title']}")
+            w_title = w.get("title", f"Winner #{i+1}")
+            print(f"  [{i}] {w_title}")
             print(f"    Prize Token : {'Native Token' if w['prizeToken'] == NATIVE_TOKEN else w['prizeToken']}")
             print(f"    Prize Amount: {prize_amount_wei / 10**prize_token_decimals} ({prize_amount_wei} wei)")
             print(f"    Certificate : ipfs://{w['certificateCID']}")
@@ -281,7 +384,7 @@ def cli(account_name, input_json, contract_address, network):
             tx_kwargs["value"] = required_native
 
         if treasury_fee > 0 and fee_token != NATIVE_TOKEN:
-            treasury_address = contract.treasuryPlatformContract()
+            treasury_address = contract.address
             erc20 = Contract(fee_token, abi=ERC20_ABI)
             fee_token_balance = erc20.balanceOf(effective_org)
             if fee_token_balance < treasury_fee:
@@ -290,13 +393,13 @@ def cli(account_name, input_json, contract_address, network):
             allowance = erc20.allowance(effective_org, treasury_address)
             if allowance < treasury_fee:
                 if effective_org == akun.address:
-                    print(f"\nApproving TreasuryPlatform to spend {treasury_fee} wei of fee token...")
+                    print(f"\nApproving CompetitionManager to spend {treasury_fee} wei of fee token...")
                     erc20.approve(treasury_address, treasury_fee, sender=akun)
                 else:
-                    print(f"\nWarning: Fee token allowance for organization ({effective_org}) on TreasuryPlatform is insufficient.")
+                    print(f"\nWarning: Fee token allowance for organization ({effective_org}) on CompetitionManager is insufficient.")
 
         if total_prize_amount > 0 and first_prize_token != NATIVE_TOKEN:
-            treasury_prize_address = contract.treasuryPrizeContract()
+            treasury_prize_address = contract.address
             erc20_prize = Contract(first_prize_token, abi=ERC20_ABI)
             prize_token_balance = erc20_prize.balanceOf(effective_org)
             if prize_token_balance < total_prize_amount:
@@ -305,10 +408,10 @@ def cli(account_name, input_json, contract_address, network):
             allowance_prize = erc20_prize.allowance(effective_org, treasury_prize_address)
             if allowance_prize < total_prize_amount:
                 if effective_org == akun.address:
-                    print(f"\nApproving TreasuryPrize to spend {total_prize_amount} wei of prize token...")
+                    print(f"\nApproving CompetitionManager to spend {total_prize_amount} wei of prize token...")
                     erc20_prize.approve(treasury_prize_address, total_prize_amount, sender=akun)
                 else:
-                    print(f"\nWarning: Prize token allowance for organization ({effective_org}) on TreasuryPrize is insufficient.")
+                    print(f"\nWarning: Prize token allowance for organization ({effective_org}) on CompetitionManager is insufficient.")
 
         tx = contract.createCompetition(
             competition_input,

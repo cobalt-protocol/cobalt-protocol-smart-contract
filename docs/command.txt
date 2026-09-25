@@ -53,19 +53,18 @@ ape run set_signer_address platform 0x1234567890abcdef1234567890abcdef12345678 -
 # 4.1 Add a new platform fee option (Native Token by default)
 # Options:
 #   --token <ADDRESS>          Fee token address (default: 0x0000000000000000000000000000000000000000)
-#   --title <TITLE>            Fee title (default: Standard Fee)
-#   --description <DESC>       Fee description (default: Standard platform fee)
+#   --cid <CID>                IPFS CID for fee metadata (default: QmDefaultFeeCID)
 #   --contract <ADDRESS>       Override PriceCompetitionManager contract address
 ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --network <NETWORK>
 ape run fee_manager set_fees platform 0.5 --network bot_chain:bot_chain_test_net:node
 
-# 4.2 Add a platform fee option with custom ERC20 token, title, and description
-ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --token <TOKEN_ADDRESS> --title <TITLE> --description <DESCRIPTION> --network <NETWORK>
-ape run fee_manager set_fees platform 10.0 --token 0x1234567890abcdef1234567890abcdef12345678 --title "Premium Tier" --description "Premium fee tier in ERC20" --network bot_chain:bot_chain_test_net:node
+# 4.2 Add a platform fee option with custom ERC20 token and IPFS CID
+ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --token <TOKEN_ADDRESS> --cid <CID> --network <NETWORK>
+ape run fee_manager set_fees platform 10.0 --token 0x1234567890abcdef1234567890abcdef12345678 --cid "QmFeeTierCID" --network bot_chain:bot_chain_test_net:node
 
 # 4.3 Update an existing platform fee option by Fee ID
-ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --fee-id <FEE_ID> --title <TITLE> --description <DESCRIPTION> --network <NETWORK>
-ape run fee_manager set_fees platform 0.2 --fee-id 1 --title "Free Tier Updated" --description "Updated description" --network bot_chain:bot_chain_test_net:node
+ape run fee_manager set_fees <ACCOUNT_NAME> <TREASURY_FEE> --fee-id <FEE_ID> --cid <CID> --network <NETWORK>
+ape run fee_manager set_fees platform 0.2 --fee-id 1 --cid "QmFeeTierCIDUpdated" --network bot_chain:bot_chain_test_net:node
 
 # 4.4 Query platform fee option details by Fee ID (default fee-id: 1)
 ape run fee_manager get_fees <ACCOUNT_NAME> --fee-id <FEE_ID> --network <NETWORK>

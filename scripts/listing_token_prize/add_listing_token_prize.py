@@ -14,14 +14,14 @@ load_dotenv()
     "--contract",
     "contract_address",
     default=None,
-    help="Contract address (default: LISTING_TOKEN_PRIZE_CONTRACT from .env)",
+    help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
 def cli(account_name, token_address, contract_address, network):
-    contract_address = contract_address or os.getenv("LISTING_TOKEN_PRIZE_CONTRACT")
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("LISTING_TOKEN_PRIZE_CONTRACT")
     if not contract_address:
         print(
-            "Error: Contract address not provided and LISTING_TOKEN_PRIZE_CONTRACT not set in .env"
+            "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
         )
         return
 
@@ -39,7 +39,7 @@ def cli(account_name, token_address, contract_address, network):
         print(f"Caller      : {akun.address}")
         print(f"Balance     : {saldo_eth} {token_symbol}")
 
-        contract = project.ListingTokenPrizeContract.at(contract_address)
+        contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
         print(f"Token to List: {token_address}")
 

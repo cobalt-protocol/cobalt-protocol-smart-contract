@@ -8,6 +8,9 @@ solidity:
   version: 0.8.27
   import_remapping:
     - "@openzeppelin=OpenZeppelin/5.6.1"
+  optimizer:
+    enabled: true
+    runs: 200
 
 dependencies:
   - name: OpenZeppelin

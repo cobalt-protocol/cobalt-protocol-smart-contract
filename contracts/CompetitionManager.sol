@@ -12,6 +12,39 @@ import {IPFSHelper} from "./helpers/IPFSHelper.sol";
 
 contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     // =============================================================
+    //                      CUSTOM ERRORS
+    // =============================================================
+
+    error CompetitionDoesNotExist();
+    error NotOrganization();
+    error CompetitionNotEnded();
+    error TokenAlreadyListed();
+    error TokenNotListed();
+    error TokenAlreadyDeactivated();
+    error PriceFeeNotFound();
+    error AmountZero();
+    error IncorrectNativeAmount();
+    error DoNotSendNative();
+    error TransferFailed();
+    error TreasuryDoesNotExist();
+    error InvalidRecipient();
+    error InsufficientPrizeBalance();
+    error InvalidFormation();
+    error MustHaveWinner();
+    error InvalidEndTime();
+    error FeeOptionNotFound();
+    error PrizeAmountZero();
+    error PrizeTokenMismatch();
+    error PrizeTokenNotListed();
+    error PrizeTokenNotActive();
+    error WinnerDoesNotExist();
+    error WinnerMismatch();
+    error InsufficientCompetitionPrize();
+    error CertificateAlreadyClaimed();
+    error InvalidSignature();
+    error CertificateNonTransferable();
+
+    // =============================================================
     //                      STRUCTS
     // =============================================================
 
@@ -32,12 +65,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         string certificateCID;
     }
 
-    struct ParticipantWinner {
-        uint256 id;
-        uint256 winnerId;
-        address participant;
-    }
-
     struct PriceCompetitionFee {
         uint256 id;
         uint256 treasuryFee;
@@ -49,18 +76,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         uint256 id;
         address tokenAddress;
         bool isActive;
-    }
-
-    struct CertificateParticipant {
-        uint256 id;
-        uint256 competitionId;
-        address participant;
-    }
-
-    struct CertificateParticipantWinner {
-        uint256 id;
-        uint256 competitionId;
-        address participant;
     }
 
     struct TreasuryPrize {
@@ -80,12 +95,10 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
 
     uint256 private competitionId;
     uint256 private winnerId;
-    uint256 private participantWinnerId;
 
     mapping(uint256 => Competitions) public competitions;
     mapping(uint256 => Winners[]) public winners;
     mapping(uint256 => Winners) public winnerById;
-    mapping(uint256 => ParticipantWinner[]) public participantWinner;
     mapping(uint256 => uint256) public competitionTotalPrize;
 
     // --- Price Competition Fee Storage ---
@@ -100,13 +113,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     address public signerAddress;
 
     // --- Certificate Manager Storage ---
-    uint256 private certificateParticipantId;
-    uint256 private certificateParticipantWinnerId;
-
-    mapping(uint256 => CertificateParticipant) public certificateParticipant;
-    mapping(uint256 => CertificateParticipantWinner)
-        public certificateParticipantWinner;
-
     mapping(address => mapping(uint256 => bool))
         public hasCertificateParticipant;
     mapping(address => mapping(uint256 => bool))
@@ -116,8 +122,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     uint256 private _nextTokenId;
 
     // --- Treasury Prize Storage ---
-    uint256 private treasuryPrizeId;
-    mapping(uint256 => TreasuryPrize) public treasuryPrize;
     mapping(uint256 => TreasuryPrize) public treasuryPrizeByCompetitionId;
 
     // =============================================================
@@ -136,7 +140,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         uint256 indexed winnerId,
         address indexed participant,
         uint256 indexed competitionId,
-        uint256 participantWinnerId,
         string certificateCID
     );
 
@@ -179,19 +182,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     event SignerAddressUpdated(address indexed signerAddress);
 
     // --- Certificate Manager Events ---
-    event CertificateParticipantAdded(
-        uint256 indexed id,
-        uint256 indexed competitionId,
-        address indexed participant
-    );
-
-    event CertificateParticipantWinnerAdded(
-        uint256 indexed id,
-        uint256 indexed competitionId,
-        address indexed participant,
-        uint256 winnerId
-    );
-
     // --- Certificate Competition Events ---
     event CertificateParticipantMinted(
         uint256 indexed tokenId,
@@ -240,30 +230,15 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         address _address_organization,
         uint256 _competition_id
     ) {
-        require(
-            competitions[_competition_id].id != 0,
-            "Competition does not exist"
-        );
-
-        require(
-            competitions[_competition_id].organization == _address_organization,
-            "Not organization"
-        );
+        if (competitions[_competition_id].id == 0) revert CompetitionDoesNotExist();
+        if (competitions[_competition_id].organization != _address_organization) revert NotOrganization();
 
         _;
     }
 
     modifier onlyCompetitionEnd(uint256 _competitionId) {
-        require(
-            competitions[_competitionId].id != 0,
-            "Competition does not exist"
-        );
-
-        require(
-            block.timestamp >=
-                competitions[_competitionId].prizeCertificateClaim,
-            "Competition is not ended"
-        );
+        if (competitions[_competitionId].id == 0) revert CompetitionDoesNotExist();
+        if (block.timestamp < competitions[_competitionId].prizeCertificateClaim) revert CompetitionNotEnded();
 
         _;
     }
@@ -289,7 +264,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     // =============================================================
 
     function addListingTokenPrize(address _tokenAddress) external onlyOwner {
-        require(listingToken[_tokenAddress].id == 0, "Token already listed");
+        if (listingToken[_tokenAddress].id != 0) revert TokenAlreadyListed();
 
         listingTokenPrizeId++;
 
@@ -305,12 +280,9 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     function deactivateListingTokenPrize(
         address _tokenAddress
     ) external onlyOwner {
-        require(listingToken[_tokenAddress].id != 0, "Token is not listed");
+        if (listingToken[_tokenAddress].id == 0) revert TokenNotListed();
 
-        require(
-            listingToken[_tokenAddress].isActive,
-            "Token already deactivated"
-        );
+        if (!listingToken[_tokenAddress].isActive) revert TokenAlreadyDeactivated();
 
         listingToken[_tokenAddress].isActive = false;
 
@@ -357,10 +329,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         address _tokenAddress,
         string calldata _cid
     ) external onlyOwner {
-        require(
-            priceCompetitionFees[_priceCompetitionFeeId].id != 0,
-            "Price competition fee not found"
-        );
+        if (priceCompetitionFees[_priceCompetitionFeeId].id == 0) revert PriceFeeNotFound();
 
         priceCompetitionFees[_priceCompetitionFeeId].treasuryFee = _treasuryFee;
 
@@ -399,17 +368,17 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     ) public payable {
         address actualSender = sender == address(0) ? msg.sender : sender;
 
-        require(amount > 0, "Amount must be greater than 0");
+        if (amount == 0) revert AmountZero();
 
         address recipient = owner();
 
         if (_tokenAddress == address(0)) {
-            require(msg.value == amount, "Incorrect native amount");
+            if (msg.value != amount) revert IncorrectNativeAmount();
 
             (bool success, ) = payable(recipient).call{value: amount}("");
-            require(success, "Transfer failed");
+            if (!success) revert TransferFailed();
         } else {
-            require(msg.value == 0, "Do not send native token");
+            if (msg.value != 0) revert DoNotSendNative();
 
             bool success = IERC20(_tokenAddress).transferFrom(
                 actualSender,
@@ -417,7 +386,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
                 amount
             );
 
-            require(success, "Transfer failed");
+            if (!success) revert TransferFailed();
         }
 
         emit TreasuryAdded(_tokenAddress, actualSender, amount);
@@ -431,39 +400,34 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         TreasuryPrize calldata _treasuryPrize,
         address _from
     ) public payable {
-        require(_treasuryPrize.totalPrize > 0, "Amount must be greater than 0");
+        if (_treasuryPrize.totalPrize == 0) revert AmountZero();
 
         address sender = _from == address(0) ? msg.sender : _from;
 
         if (_treasuryPrize.tokenAddress == address(0)) {
-            require(
-                msg.value == _treasuryPrize.totalPrize,
-                "Incorrect native amount"
-            );
+            if (msg.value != _treasuryPrize.totalPrize) revert IncorrectNativeAmount();
         } else {
-            require(msg.value == 0, "Do not send native token");
+            if (msg.value != 0) revert DoNotSendNative();
             bool success = IERC20(_treasuryPrize.tokenAddress).transferFrom(
                 sender,
                 address(this),
                 _treasuryPrize.totalPrize
             );
-            require(success, "Transfer failed");
+            if (!success) revert TransferFailed();
         }
 
-        treasuryPrizeId++;
         TreasuryPrize memory newEntry = TreasuryPrize({
-            id: treasuryPrizeId,
+            id: _treasuryPrize.competitionId,
             competitionId: _treasuryPrize.competitionId,
             organization: sender,
             totalPrize: _treasuryPrize.totalPrize,
             tokenAddress: _treasuryPrize.tokenAddress
         });
 
-        treasuryPrize[treasuryPrizeId] = newEntry;
         treasuryPrizeByCompetitionId[_treasuryPrize.competitionId] = newEntry;
 
         emit PrizeDeposited(
-            treasuryPrizeId,
+            _treasuryPrize.competitionId,
             _treasuryPrize.competitionId,
             _treasuryPrize.tokenAddress,
             sender,
@@ -483,38 +447,24 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         TreasuryPrize storage compPrize = treasuryPrizeByCompetitionId[
             _competitionId
         ];
-        require(
-            compPrize.organization != address(0),
-            "Treasury does not exist"
-        );
-        require(
-            caller == compPrize.organization,
-            "Only organization can payout"
-        );
-        require(_to != address(0), "Invalid recipient");
-        require(_amount > 0, "Amount must be greater than 0");
-        require(compPrize.totalPrize >= _amount, "Insufficient prize balance");
-        require(
-            compPrize.tokenAddress == _tokenAddress,
-            "Token address mismatch"
-        );
+        if (compPrize.organization == address(0)) revert TreasuryDoesNotExist();
+        if (caller != compPrize.organization) revert NotOrganization();
+        if (_to == address(0)) revert InvalidRecipient();
+        if (_amount == 0) revert AmountZero();
+        if (compPrize.totalPrize < _amount) revert InsufficientPrizeBalance();
+        if (compPrize.tokenAddress != _tokenAddress) revert PrizeTokenMismatch();
 
         compPrize.totalPrize -= _amount;
 
-        uint256 tId = compPrize.id;
-        if (tId != 0) {
-            treasuryPrize[tId].totalPrize -= _amount;
-        }
-
         if (_tokenAddress == address(0)) {
             (bool success, ) = _to.call{value: _amount}("");
-            require(success, "Native transfer failed");
+            if (!success) revert TransferFailed();
         } else {
             bool success = IERC20(_tokenAddress).transfer(_to, _amount);
-            require(success, "Transfer failed");
+            if (!success) revert TransferFailed();
         }
 
-        emit PrizeDistributed(tId, _competitionId, _tokenAddress, _to, _amount);
+        emit PrizeDistributed(_competitionId, _competitionId, _tokenAddress, _to, _amount);
     }
 
     function isValidFormation(
@@ -532,14 +482,9 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         Winners[] calldata _winners,
         uint256 _priceCompetitionFeeId
     ) external payable {
-        require(
-            _competition.prizeCertificateClaim > block.timestamp,
-            "Invalid end time"
-        );
-
-        require(isValidFormation(_competition.formation), "Invalid formation");
-
-        require(_winners.length > 0, "Must have at least one winner");
+        if (_competition.prizeCertificateClaim <= block.timestamp) revert InvalidEndTime();
+        if (!isValidFormation(_competition.formation)) revert InvalidFormation();
+        if (_winners.length == 0) revert MustHaveWinner();
 
         address sender = _competition.organization == address(0)
             ? msg.sender
@@ -548,7 +493,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         competitionId++;
 
         competitions[competitionId] = _competition;
-
         competitions[competitionId].id = competitionId;
         competitions[competitionId].organization = sender;
 
@@ -556,34 +500,22 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
             _priceCompetitionFeeId
         ];
 
-        require(platformFee.id != 0, "Fee option does not exist");
+        if (platformFee.id == 0) revert FeeOptionNotFound();
 
         uint256 fee = platformFee.treasuryFee;
         address feeToken = platformFee.tokenAddress;
 
         uint256 totalPrizeAmount = 0;
-
         address firstPrizeToken = _winners[0].prizeToken;
 
         for (uint256 i = 0; i < _winners.length; i++) {
-            require(
-                _winners[i].prizeAmount > 0,
-                "Prize must be greater than 0"
-            );
-
-            require(
-                _winners[i].prizeToken == firstPrizeToken,
-                "Prize token must be the same for all winners"
-            );
+            if (_winners[i].prizeAmount == 0) revert PrizeAmountZero();
+            if (_winners[i].prizeToken != firstPrizeToken) revert PrizeTokenMismatch();
 
             ListingTokenPrize memory listed = listingToken[_winners[i].prizeToken];
 
-            require(
-                listed.tokenAddress == _winners[i].prizeToken,
-                "Prize token is not listed"
-            );
-
-            require(listed.isActive, "Prize token is not active");
+            if (listed.tokenAddress != _winners[i].prizeToken) revert PrizeTokenNotListed();
+            if (!listed.isActive) revert PrizeTokenNotActive();
 
             totalPrizeAmount += _winners[i].prizeAmount;
 
@@ -598,7 +530,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
             });
 
             winners[competitionId].push(newWinner);
-
             winnerById[winnerId] = newWinner;
         }
 
@@ -622,36 +553,53 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
             requiredNative += totalPrizeAmount;
         }
 
-        require(msg.value == requiredNative, "Incorrect native amount");
+        if (msg.value != requiredNative) revert IncorrectNativeAmount();
 
         if (fee > 0) {
+            address recipient = owner();
             if (feeToken == address(0)) {
-                this.addTreasuryFrom{value: fee}(
+                (bool success, ) = payable(recipient).call{value: fee}("");
+                if (!success) revert TransferFailed();
+                emit TreasuryAdded(address(0), sender, fee);
+            } else {
+                bool success = IERC20(feeToken).transferFrom(
                     sender,
-                    address(0),
+                    recipient,
                     fee
                 );
-            } else {
-                addTreasuryFrom(sender, feeToken, fee);
+                if (!success) revert TransferFailed();
+                emit TreasuryAdded(feeToken, sender, fee);
             }
 
             emit CompetitionFeePaid(competitionId, sender, feeToken, fee);
         }
 
         if (totalPrizeAmount > 0) {
-            uint256 nativePrizeValue = firstPrizeToken == address(0)
-                ? totalPrizeAmount
-                : 0;
+            if (firstPrizeToken != address(0)) {
+                bool success = IERC20(firstPrizeToken).transferFrom(
+                    sender,
+                    address(this),
+                    totalPrizeAmount
+                );
+                if (!success) revert TransferFailed();
+            }
 
-            this.addTreasury{value: nativePrizeValue}(
-                TreasuryPrize({
-                    id: 0,
-                    competitionId: competitionId,
-                    organization: sender,
-                    totalPrize: totalPrizeAmount,
-                    tokenAddress: firstPrizeToken
-                }),
-                sender
+            TreasuryPrize memory newEntry = TreasuryPrize({
+                id: competitionId,
+                competitionId: competitionId,
+                organization: sender,
+                totalPrize: totalPrizeAmount,
+                tokenAddress: firstPrizeToken
+            });
+
+            treasuryPrizeByCompetitionId[competitionId] = newEntry;
+
+            emit PrizeDeposited(
+                competitionId,
+                competitionId,
+                firstPrizeToken,
+                sender,
+                totalPrizeAmount
             );
         }
     }
@@ -661,33 +609,14 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         address _participant,
         uint256 _competition_id
     ) external onlyOrganization(msg.sender, _competition_id) {
-        require(winnerById[_winnerId].id != 0, "Winner does not exist");
-
-        require(
-            winnerById[_winnerId].competitionId == _competition_id,
-            "Winner does not belong to this competition"
-        );
+        if (winnerById[_winnerId].id == 0) revert WinnerDoesNotExist();
+        if (winnerById[_winnerId].competitionId != _competition_id) revert WinnerMismatch();
 
         Winners memory winner_participant = winnerById[_winnerId];
 
-        require(
-            competitionTotalPrize[_competition_id] >=
-                winner_participant.prizeAmount,
-            "Insufficient competition prize balance"
-        );
+        if (competitionTotalPrize[_competition_id] < winner_participant.prizeAmount) revert InsufficientCompetitionPrize();
 
-        competitionTotalPrize[_competition_id] -= winner_participant
-            .prizeAmount;
-
-        participantWinnerId++;
-
-        participantWinner[_winnerId].push(
-            ParticipantWinner({
-                id: participantWinnerId,
-                winnerId: _winnerId,
-                participant: _participant
-            })
-        );
+        competitionTotalPrize[_competition_id] -= winner_participant.prizeAmount;
 
         payout(
             _competition_id,
@@ -701,7 +630,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
             _winnerId,
             _participant,
             _competition_id,
-            participantWinnerId,
             winner_participant.certificateCID
         );
     }
@@ -760,15 +688,9 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     function getWinner(
         uint256 _winnerId
     ) external view returns (Winners memory) {
-        require(winnerById[_winnerId].id != 0, "Winner does not exist");
+        if (winnerById[_winnerId].id == 0) revert WinnerDoesNotExist();
 
         return winnerById[_winnerId];
-    }
-
-    function getParticipantWinners(
-        uint256 _winnerId
-    ) external view returns (ParticipantWinner[] memory) {
-        return participantWinner[_winnerId];
     }
 
     function isCompetitionEnded(
@@ -780,128 +702,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     }
 
     // =============================================================
-    //                 CERTIFICATE MANAGER FUNCTIONS
-    // =============================================================
-
-    function addCertificateParticipant(
-        address _participant,
-        uint256 _competitionId,
-        bytes memory signature
-    ) public {
-        Competitions memory comp = competitions[_competitionId];
-
-        require(comp.id != 0, "Competition does not exist");
-
-        require(
-            !hasCertificateParticipant[_participant][_competitionId],
-            "Certificate participant already exists"
-        );
-
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                msg.sender,
-                _participant,
-                _participant,
-                _competitionId,
-                IPFSHelper.toIPFSURI(comp.certificateCID)
-            )
-        );
-
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(
-            messageHash
-        );
-
-        address recoveredSigner = ECDSA.recover(
-            ethSignedMessageHash,
-            signature
-        );
-
-        require(
-            recoveredSigner == signerAddress,
-            "Invalid signature"
-        );
-
-        certificateParticipantId++;
-
-        certificateParticipant[
-            certificateParticipantId
-        ] = CertificateParticipant({
-            id: certificateParticipantId,
-            competitionId: _competitionId,
-            participant: _participant
-        });
-
-        hasCertificateParticipant[_participant][_competitionId] = true;
-
-        emit CertificateParticipantAdded(
-            certificateParticipantId,
-            _competitionId,
-            _participant
-        );
-    }
-
-    function addCertificateParticipantWinner(
-        address _participant,
-        uint256 _competitionId,
-        uint256 _winnerId,
-        bytes memory signature
-    ) public {
-        Competitions memory comp = competitions[_competitionId];
-
-        require(comp.id != 0, "Competition does not exist");
-
-        require(
-            !hasCertificateParticipantWinner[_participant][_winnerId],
-            "Certificate participant winner already exists"
-        );
-
-        Winners memory winner = winnerById[_winnerId];
-
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(
-                msg.sender,
-                _participant,
-                _participant,
-                _winnerId,
-                IPFSHelper.toIPFSURI(winner.certificateCID)
-            )
-        );
-
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(
-            messageHash
-        );
-
-        address recoveredSigner = ECDSA.recover(
-            ethSignedMessageHash,
-            signature
-        );
-
-        require(
-            recoveredSigner == signerAddress,
-            "Invalid signature"
-        );
-
-        certificateParticipantWinnerId++;
-
-        certificateParticipantWinner[
-            certificateParticipantWinnerId
-        ] = CertificateParticipantWinner({
-            id: certificateParticipantWinnerId,
-            competitionId: _competitionId,
-            participant: _participant
-        });
-
-        hasCertificateParticipantWinner[_participant][_winnerId] = true;
-
-        emit CertificateParticipantWinnerAdded(
-            certificateParticipantWinnerId,
-            _competitionId,
-            _participant,
-            _winnerId
-        );
-    }
-
-    // =============================================================
     //             CERTIFICATE COMPETITION (NFT) FUNCTIONS
     // =============================================================
 
@@ -909,10 +709,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         uint256 _competitionId,
         bytes memory signature
     ) public onlyCompetitionEnd(_competitionId) returns (uint256) {
-        require(
-            !hasCertificateParticipant[msg.sender][_competitionId],
-            "Certificate participant already claimed"
-        );
+        if (hasCertificateParticipant[msg.sender][_competitionId]) revert CertificateAlreadyClaimed();
 
         Competitions memory competition = competitions[_competitionId];
 
@@ -937,22 +734,15 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
             signature
         );
 
-        require(
-            recoveredSigner == signerAddress,
-            "Invalid signature"
-        );
+        if (recoveredSigner != signerAddress) revert InvalidSignature();
+
+        hasCertificateParticipant[msg.sender][_competitionId] = true;
 
         uint256 tokenId = _nextTokenId++;
 
         _safeMint(msg.sender, tokenId);
 
         _setTokenURI(tokenId, uri);
-
-        addCertificateParticipant(
-            msg.sender,
-            _competitionId,
-            signature
-        );
 
         emit CertificateParticipantMinted(
             tokenId,
@@ -972,17 +762,9 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
 
         Competitions memory competition = competitions[winner.competitionId];
 
-        require(competition.id != 0, "Competition does not exist");
-
-        require(
-            block.timestamp >= competition.prizeCertificateClaim,
-            "Competition is not ended"
-        );
-
-        require(
-            !hasCertificateParticipantWinner[msg.sender][_winnerId],
-            "Certificate participant winner already claimed"
-        );
+        if (competition.id == 0) revert CompetitionDoesNotExist();
+        if (block.timestamp < competition.prizeCertificateClaim) revert CompetitionNotEnded();
+        if (hasCertificateParticipantWinner[msg.sender][_winnerId]) revert CertificateAlreadyClaimed();
 
         string memory uri = IPFSHelper.toIPFSURI(winner.certificateCID);
 
@@ -1005,23 +787,15 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
             signature
         );
 
-        require(
-            recoveredSigner == signerAddress,
-            "Invalid signature"
-        );
+        if (recoveredSigner != signerAddress) revert InvalidSignature();
+
+        hasCertificateParticipantWinner[msg.sender][_winnerId] = true;
 
         uint256 tokenId = _nextTokenId++;
 
         _safeMint(msg.sender, tokenId);
 
         _setTokenURI(tokenId, uri);
-
-        addCertificateParticipantWinner(
-            msg.sender,
-            winner.competitionId,
-            _winnerId,
-            signature
-        );
 
         emit CertificateParticipantWinnerMinted(
             tokenId,
@@ -1045,10 +819,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     ) internal override(ERC721) returns (address) {
         address previousOwner = super._update(to, tokenId, auth);
 
-        require(
-            previousOwner == address(0) || to == address(0),
-            "Certificate NFTs are non-transferable"
-        );
+        if (previousOwner != address(0) && to != address(0)) revert CertificateNonTransferable();
 
         return previousOwner;
     }

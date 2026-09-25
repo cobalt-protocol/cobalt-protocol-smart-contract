@@ -16,14 +16,14 @@ NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
     "--contract",
     "contract_address",
     default=None,
-    help="Contract address (default: TREASURY_PRIZE_CONTRACT from .env)",
+    help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
 def cli(account_name, competition_id, contract_address, network):
-    contract_address = contract_address or os.getenv("TREASURY_PRIZE_CONTRACT")
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("TREASURY_PRIZE_CONTRACT")
     if not contract_address:
         print(
-            "Error: Contract address not provided and TREASURY_PRIZE_CONTRACT not set in .env"
+            "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
         )
         return
 
@@ -41,7 +41,7 @@ def cli(account_name, competition_id, contract_address, network):
         print(f"Caller      : {akun.address}")
         print(f"Balance     : {saldo_eth} {token_symbol}")
 
-        contract = project.TreasuryPrize.at(contract_address)
+        contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
 
         print(f"\nFetching treasury prize for Competition ID {competition_id}...")

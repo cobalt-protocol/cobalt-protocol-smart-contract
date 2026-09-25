@@ -14,14 +14,14 @@ load_dotenv()
     "--contract",
     "contract_address",
     default=None,
-    help="Contract address (default: TREASURY_PLATFORM_CONTRACT from .env)",
+    help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
 def cli(account_name, new_owner_address, contract_address, network):
-    contract_address = contract_address or os.getenv("TREASURY_PLATFORM_CONTRACT")
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("TREASURY_PLATFORM_CONTRACT")
     if not contract_address:
         print(
-            "Error: Contract address not provided and TREASURY_PLATFORM_CONTRACT not set in .env"
+            "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
         )
         return
 
@@ -39,12 +39,12 @@ def cli(account_name, new_owner_address, contract_address, network):
         print(f"Caller      : {akun.address}")
         print(f"Balance     : {saldo_eth} {token_symbol}")
 
-        contract = project.TreasuryPlatform.at(contract_address)
+        contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
         print(f"Old Owner   : {contract.owner()}")
         print(f"New Owner   : {new_owner_address}")
 
-        print("\nUpdating TreasuryPlatform owner...")
+        print("\nUpdating CompetitionManager owner...")
         tx = contract.updateOwner(new_owner_address, sender=akun)
 
         print(f"TX Hash     : {tx.txn_hash}")

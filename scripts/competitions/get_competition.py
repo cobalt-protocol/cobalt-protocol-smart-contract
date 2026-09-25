@@ -1,7 +1,10 @@
+#!/usr/bin/env python3
+import json
 import os
 from datetime import datetime, timezone
 
 import click
+import requests
 from ape import accounts, networks, project
 from dotenv import load_dotenv
 
@@ -10,34 +13,50 @@ load_dotenv()
 NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
 
 
+def fetch_from_kubo_ipfs(cid: str) -> dict:
+    if not cid:
+        return {}
+    base_url = os.getenv("KUBO_API_URL", "http://localhost:5001").rstrip("/")
+    endpoint = f"{base_url}/api/v0/cat?arg={cid}"
+    try:
+        res = requests.post(endpoint, timeout=5)
+        if res.ok:
+            return res.json()
+    except Exception:
+        pass
+    return {}
+
+
 def display_competition(contract, comp):
     if comp.id == 0:
         return
 
-    sched = comp.schedule
-    claim_ts = sched.prizeCertificateClaim if hasattr(sched, "prizeCertificateClaim") else sched[5]
+    claim_ts = comp.prizeCertificateClaim
     end_at_dt = datetime.fromtimestamp(claim_ts, tz=timezone.utc)
     end_at_str = end_at_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    meta = fetch_from_kubo_ipfs(comp.cid) if hasattr(comp, "cid") and comp.cid else {}
 
     print(f"\n{'='*50}")
     print(f"Competition #{comp.id}")
     print(f"{'='*50}")
-    print(f"Name        : {comp.name}")
-    print(f"Category    : {comp.category}")
-    print(f"Description : {comp.description}")
-    print(f"Requirements: {comp.requirements}")
+    if meta.get("name"):
+        print(f"Name        : {meta['name']}")
+    if meta.get("category"):
+        print(f"Category    : {meta['category']}")
+    if meta.get("description"):
+        print(f"Description : {meta['description']}")
+    if meta.get("requirements"):
+        print(f"Requirements: {meta['requirements']}")
+    print(f"CID         : ipfs://{comp.cid}")
     print(f"Formation   : {comp.formation}")
     print(f"Organization: {comp.organization}")
-    print(f"Schedule    :")
-    print(f"  Registration Window    : {sched.registrationWindow if hasattr(sched, 'registrationWindow') else sched[0]}")
-    print(f"  Competition Window     : {sched.competitionWindow if hasattr(sched, 'competitionWindow') else sched[1]}")
-    print(f"  Submission Deadline    : {sched.submissionDeadline if hasattr(sched, 'submissionDeadline') else sched[2]}")
-    print(f"  Judging Review         : {sched.judgingReview if hasattr(sched, 'judgingReview') else sched[3]}")
-    print(f"  Result Announcement    : {sched.resultAnnouncement if hasattr(sched, 'resultAnnouncement') else sched[4]}")
-    print(f"  Prize Certificate Claim: {end_at_str} ({claim_ts})")
+    print(f"Prize Certificate Claim: {end_at_str} ({claim_ts})")
     print(f"Certificate : ipfs://{comp.certificateCID}")
-    if hasattr(comp, "guideBookCID") and comp.guideBookCID:
-        print(f"Guidebook   : ipfs://{comp.guideBookCID}")
+    if meta.get("guideBookCID"):
+        print(f"GuideBook   : ipfs://{meta['guideBookCID']}")
+
+    meta_winners = meta.get("winners", [])
 
     print(f"\n{'='*50}")
     print("Winners")
@@ -47,7 +66,8 @@ def display_competition(contract, comp):
         for index, w in enumerate(winners_list):
             prize_eth = w.prizeAmount / 10**18
             token_label = "Native Token" if w.prizeToken == NATIVE_TOKEN else w.prizeToken
-            print(f"  [{index}] {w.title}")
+            w_title = meta_winners[index].get("title") if index < len(meta_winners) and isinstance(meta_winners[index], dict) else f"Winner #{w.id}"
+            print(f"  [{index}] {w_title}")
             print(f"    Winner ID   : {w.id}")
             print(f"    Prize Token : {token_label}")
             print(f"    Prize Amount: {prize_eth} ({w.prizeAmount} wei)")

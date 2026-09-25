@@ -17,14 +17,14 @@ load_dotenv()
     "--contract",
     "contract_address",
     default=None,
-    help="Contract address (default: CERTIFICATE_COMPETITION_CONTRACT from .env)",
+    help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
 def cli(account_name, winner_id, contract_address, network):
-    contract_address = contract_address or os.getenv("CERTIFICATE_COMPETITION_CONTRACT")
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("CERTIFICATE_COMPETITION_CONTRACT")
     if not contract_address:
         print(
-            "Error: Contract address not provided and CERTIFICATE_COMPETITION_CONTRACT not set in .env"
+            "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
         )
         return
 
@@ -46,19 +46,12 @@ def cli(account_name, winner_id, contract_address, network):
         token_symbol = provider.network.ecosystem.fee_token_symbol
         saldo_eth = akun.balance / 10**18
 
-        contract = project.CertificateCompetition.at(contract_address)
-        signer_manager_address = contract.signerManagerContract()
-        signer_manager = project.SignerManager.at(signer_manager_address)
-        contract_signer = signer_manager.signerAddress()
-
-        signer_manager_cert_address = contract.signerManagerCertificateContract()
-        signer_manager_cert = project.SignerManager.at(signer_manager_cert_address)
-        contract_signer_cert = signer_manager_cert.signerAddress()
+        contract = project.CompetitionManager.at(contract_address)
+        contract_signer = contract.signerAddress()
 
         print(f"Caller               : {akun.address}")
         print(f"Local Signer         : {signer_account.address}")
         print(f"Contract Signer      : {contract_signer}")
-        print(f"Cert Contract Signer : {contract_signer_cert}")
         print(f"Balance              : {saldo_eth} {token_symbol}")
         print(f"Contract             : {contract.address}")
 
@@ -66,33 +59,23 @@ def cli(account_name, winner_id, contract_address, network):
             print(
                 f"\nError: Local signer ({signer_account.address}) does NOT match contract signer ({contract_signer})!"
             )
-            print("Please redeploy the contract with --signer argument or update signerAddress on SignerManager.")
+            print("Please update signerAddress on CompetitionManager.")
             return
-
-        if signer_account.address.lower() != contract_signer_cert.lower():
-            print(
-                f"\nError: Local signer ({signer_account.address}) does NOT match certificate contract signer ({contract_signer_cert})!"
-            )
-            print("Please redeploy the contract with --signer argument or update signerAddress on SignerManagerCertificate.")
-            return
-
-        competition_manager_address = contract.competitionManagerContract()
-        competition_contract = project.CompetitionManager.at(competition_manager_address)
 
         print(f"\nFetching winner ID {winner_id}...")
         try:
-            winner = competition_contract.getWinner(winner_id)
+            winner = contract.getWinner(winner_id)
         except Exception:
             print(f"Error: Winner ID {winner_id} does not exist.")
             return
 
-        comp = competition_contract.getCompetition(winner.competitionId)
+        comp = contract.getCompetition(winner.competitionId)
 
         if comp.id == 0:
             print(f"Error: Competition ID {winner.competitionId} does not exist.")
             return
 
-        ended = competition_contract.isCompetitionEnded(winner.competitionId)
+        ended = contract.isCompetitionEnded(winner.competitionId)
         if not ended:
             print(f"Error: Competition ID {winner.competitionId} has not ended yet.")
             return
@@ -102,8 +85,8 @@ def cli(account_name, winner_id, contract_address, network):
         print(f"\n{'='*50}")
         print("Claim Certificate Participant Winner")
         print(f"{'='*50}")
-        print(f"Competition    : #{comp.id} - {comp.name}")
-        print(f"Winner ID      : #{winner.id} - {winner.title}")
+        print(f"Competition    : #{comp.id}")
+        print(f"Winner ID      : #{winner.id}")
         print(f"Organization   : {comp.organization}")
         print(f"Participant    : {akun.address}")
         print(f"Certificate URI: {certificate_uri}")
