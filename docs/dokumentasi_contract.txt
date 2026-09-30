@@ -1,0 +1,47 @@
+Cobalt Protocol Smart Contracts Documentation
+
+1. CertificateCompetition
+Contract Title: CertificateCompetition
+Contract Address: 0x2FEDA53447837562975568Bc8f991C2BC1282e72
+Short Description: An ERC-721 NFT smart contract handling digital certificate minting for general participants and competition winners. Certificate claims require cryptographic verification of off-chain signatures from the official platform signer and can only be executed after the designated claim schedule.
+
+2. CertificateManager
+Contract Title: CertificateManager
+Contract Address: 0xc0f15FFe4DB8aa49BA1e4E8992a69d45bD4be84F
+Short Description: A registry smart contract that records certificate claim histories for participants and winners to prevent duplicate claims.
+
+3. CompetitionManager
+Contract Title: CompetitionManager
+Contract Address: 0x2938eabf29e9F7ecaff7E11ca9794DFa904e78D7
+Short Description: The core smart contract managing the complete competition lifecycle, including creation, platform fee collection, prize escrow locking, winner assignment, and automated prize payouts.
+
+4. ListingTokenPrize
+Contract Title: ListingTokenPrizeContract
+Contract Address: 0xc58097764cB12dd8f0A0d845aD310a1d939E2806
+Short Description: A whitelist smart contract managing permitted Native and ERC-20 tokens allowed for competition prize allocations.
+
+5. PriceCompetitionManager
+Contract Title: PriceCompetitionManager
+Contract Address: 0xEbB1AB2B5Be030f18A2Ce2d8F1d168244684d44b
+Short Description: A platform fee management smart contract configuring fee options and tiers for competition creation, supporting free and paid tiers.
+
+6. SignerManager
+Contract Title: SignerManager
+Contract Address: 0xf0E473Ac03A70ae3c5EaCb322559AAA81545a37d
+SignerManager Certificate Address: 0x65186A54f035E962D863ad22B7c1a6eB7986c20e
+Short Description: A storage smart contract holding the official platform signer wallet address, referenced by certificate contracts to validate off-chain signatures.
+
+7. TreasuryPlatform
+Contract Title: TreasuryPlatform
+Contract Address: 0x9832d8A595E4a9F3A1793bCcB6ED76E8A3514EDd
+Short Description: A treasury smart contract receiving and managing platform fees collected from competition creations in Native or ERC-20 tokens.
+
+8. TreasuryPrize
+Contract Title: TreasuryPrize
+Contract Address: 0x501c3E1eB0059609Df8DE7bf06e70598e68F2d97
+Short Description: An escrow vault smart contract locking competition prize funds upon creation and executing automated payouts to winning participants when assigned.
+
+9. IPFSHelper
+Contract Title: IPFSHelper
+Contract Address: N/A (Internal Solidity Library)
+Short Description: A Solidity helper library providing internal utility functions to format IPFS Content Identifiers into valid IPFS URI strings.

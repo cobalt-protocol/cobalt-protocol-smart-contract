@@ -9,7 +9,7 @@ load_dotenv()
 
 @click.command()
 @click.argument("account_name")
-@click.argument("certificate_id", type=int)
+@click.argument("new_owner_address")
 @click.option(
     "--contract",
     "contract_address",
@@ -17,8 +17,8 @@ load_dotenv()
     help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
-def cli(account_name, certificate_id, contract_address, network):
-    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("CERTIFICATE_MANAGER_CONTRACT")
+def cli(account_name, new_owner_address, contract_address, network):
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("TREASURY_PLATFORM_CONTRACT")
     if not contract_address:
         print(
             "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
@@ -41,25 +41,12 @@ def cli(account_name, certificate_id, contract_address, network):
 
         contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
+        print(f"Old Owner   : {contract.owner()}")
+        print(f"New Owner   : {new_owner_address}")
 
-        print(f"\nFetching certificate participant ID {certificate_id}...")
+        print("\nUpdating CompetitionManager owner...")
+        tx = contract.updateOwner(new_owner_address, sender=akun)
 
-        try:
-            cert = contract.certificateParticipant(certificate_id)
-        except Exception:
-            print(f"Error: Certificate participant ID {certificate_id} does not exist.")
-            return
-
-        if cert.id == 0:
-            print(f"Error: Certificate participant ID {certificate_id} does not exist.")
-            return
-
-        comp = contract.getCompetition(cert.competitionId)
-
-        print(f"\n{'='*50}")
-        print(f"Certificate Participant #{cert.id}")
-        print(f"{'='*50}")
-        print(f"Certificate ID : {cert.id}")
-        print(f"Competition ID : {cert.competitionId}")
-        print(f"Participant    : {cert.participant}")
-
+        print(f"TX Hash     : {tx.txn_hash}")
+        print(f"New Owner   : {contract.owner()}")
+        print("Update owner success!")

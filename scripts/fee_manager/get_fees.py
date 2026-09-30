@@ -1,10 +1,26 @@
+#!/usr/bin/env python3
 import os
 
 import click
+import requests
 from ape import accounts, networks, project
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+def fetch_from_kubo_ipfs(cid: str) -> dict:
+    if not cid:
+        return {}
+    base_url = os.getenv("KUBO_API_URL", "http://localhost:5001").rstrip("/")
+    endpoint = f"{base_url}/api/v0/cat?arg={cid}"
+    try:
+        res = requests.post(endpoint, timeout=5)
+        if res.ok:
+            return res.json()
+    except Exception:
+        pass
+    return {}
 
 
 @click.command()
@@ -14,14 +30,14 @@ load_dotenv()
     "--contract",
     "contract_address",
     default=None,
-    help="Contract address (default: PRICE_COMPETITION_MANAGER_CONTRACT from .env)",
+    help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
 def cli(account_name, platform_fee_id, contract_address, network):
-    contract_address = contract_address or os.getenv("PRICE_COMPETITION_MANAGER_CONTRACT") or os.getenv("PRIZE_COMPETITION_MANAGER_CONTRACT") or os.getenv("FEE_MANAGER_CONTRACT")
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("PRICE_COMPETITION_MANAGER_CONTRACT") or os.getenv("PRIZE_COMPETITION_MANAGER_CONTRACT") or os.getenv("FEE_MANAGER_CONTRACT")
     if not contract_address:
         print(
-            "Error: Contract address not provided and PRICE_COMPETITION_MANAGER_CONTRACT not set in .env"
+            "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
         )
         return
 
@@ -39,7 +55,7 @@ def cli(account_name, platform_fee_id, contract_address, network):
         print(f"Caller      : {akun.address}")
         print(f"Balance     : {saldo_eth} {token_symbol}")
 
-        contract = project.PriceCompetitionManager.at(contract_address)
+        contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
 
         fee = contract.getPriceCompetitionFee(platform_fee_id)
@@ -47,11 +63,17 @@ def cli(account_name, platform_fee_id, contract_address, network):
             print(f"\nFee Option ID #{platform_fee_id} does not exist.")
             return
 
+        meta = fetch_from_kubo_ipfs(fee.cid) if hasattr(fee, "cid") and fee.cid else {}
+
         print(f"\n{'='*50}")
-        print(f"PriceCompetitionManager Option #{fee.id}")
+        print(f"Fee Option #{fee.id}")
         print(f"{'='*50}")
-        print(f"  Title        : {fee.title}")
-        print(f"  Description  : {fee.description}")
+        if meta.get("name"):
+            print(f"  Name         : {meta['name']}")
+        if meta.get("description"):
+            print(f"  Description  : {meta['description']}")
+        print(f"  CID          : ipfs://{fee.cid}")
         print(f"  Token Address: {fee.tokenAddress}")
         print(f"  Treasury Fee : {fee.treasuryFee / 10**18} {token_symbol} ({fee.treasuryFee} wei)")
+
 

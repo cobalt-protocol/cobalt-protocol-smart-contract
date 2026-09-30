@@ -44,7 +44,7 @@ def cli(account_name, winner_id, contract_address, network):
 
         if participant_winners:
             for i, pw in enumerate(participant_winners):
-                print(f"  [{i}] ID: {pw.participantWinnerId}")
+                print(f"  [{i}] ID: {pw.id}")
                 print(f"    Winner ID   : {pw.winnerId}")
                 print(f"    Participant : {pw.participant}")
         else:

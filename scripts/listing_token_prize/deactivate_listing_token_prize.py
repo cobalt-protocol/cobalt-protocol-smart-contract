@@ -36,15 +36,15 @@ def cli(account_name, token_address, contract_address, network):
         token_symbol = provider.network.ecosystem.fee_token_symbol
         saldo_eth = akun.balance / 10**18
 
-        print(f"Caller      : {akun.address}")
-        print(f"Balance     : {saldo_eth} {token_symbol}")
+        print(f"Caller        : {akun.address}")
+        print(f"Balance       : {saldo_eth} {token_symbol}")
 
         contract = project.CompetitionManager.at(contract_address)
-        print(f"Contract    : {contract.address}")
-        print(f"Token to List: {token_address}")
+        print(f"Contract      : {contract.address}")
+        print(f"Token to Stop : {token_address}")
 
-        print("\nAdding listing token prize...")
-        tx = contract.addListingTokenPrize(token_address, sender=akun)
+        print("\nDeactivating listing token prize...")
+        tx = contract.deactivateListingTokenPrize(token_address, sender=akun)
 
-        print(f"TX Hash     : {tx.txn_hash}")
-        print("Add listing token prize success!")
+        print(f"TX Hash       : {tx.txn_hash}")
+        print("Deactivate listing token prize success!")

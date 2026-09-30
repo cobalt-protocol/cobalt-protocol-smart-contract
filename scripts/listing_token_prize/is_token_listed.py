@@ -6,12 +6,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
-
 
 @click.command()
 @click.argument("account_name")
-@click.argument("competition_id", type=int)
+@click.argument("token_address")
 @click.option(
     "--contract",
     "contract_address",
@@ -19,8 +17,8 @@ NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
     help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
-def cli(account_name, competition_id, contract_address, network):
-    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("TREASURY_PRIZE_CONTRACT")
+def cli(account_name, token_address, contract_address, network):
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("LISTING_TOKEN_PRIZE_CONTRACT")
     if not contract_address:
         print(
             "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
@@ -43,22 +41,18 @@ def cli(account_name, competition_id, contract_address, network):
 
         contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
+        print(f"Token Address: {token_address}")
 
-        print(f"\nFetching treasury prize for Competition ID {competition_id}...")
-        tp = contract.treasuryPrizeByCompetitionId(competition_id)
+        print("\nChecking if token is listed...")
+        is_listed = contract.isTokenListed(token_address)
 
-        if tp.organization == "0x0000000000000000000000000000000000000000":
-            print(f"Error: Treasury prize for Competition ID {competition_id} does not exist.")
-            return
-
-        prize_eth = tp.totalPrize / 10**18
-        token_label = "Native Token" if tp.tokenAddress == NATIVE_TOKEN else tp.tokenAddress
+        token_info = contract.listingToken(token_address)
 
         print(f"\n{'='*50}")
-        print(f"Treasury Prize (Competition #{competition_id})")
+        print("Token Listing Status")
         print(f"{'='*50}")
-        print(f"  Treasury Prize ID: {tp.id}")
-        print(f"  Competition ID   : {tp.competitionId}")
-        print(f"  Organization     : {tp.organization}")
-        print(f"  Token Address    : {token_label}")
-        print(f"  Total Prize      : {prize_eth} ({tp.totalPrize} wei)")
+        print(f"Is Listed    : {is_listed}")
+        if is_listed:
+            print(f"Listing ID   : {token_info.id}")
+            print(f"Token Address: {token_info.tokenAddress}")
+            print(f"Is Active    : {token_info.isActive}")

@@ -15,7 +15,7 @@ NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
     "--contract",
     "contract_address",
     default=None,
-    help="Contract address (default: TREASURY_PLATFORM_CONTRACT from .env)",
+    help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option(
     "--token",
@@ -25,10 +25,10 @@ NATIVE_TOKEN = "0x0000000000000000000000000000000000000000"
 )
 @click.option("--network", help="Network specifier")
 def cli(account_name, contract_address, token_address, network):
-    contract_address = contract_address or os.getenv("TREASURY_PLATFORM_CONTRACT")
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("TREASURY_PLATFORM_CONTRACT")
     if not contract_address:
         print(
-            "Error: Contract address not provided and TREASURY_PLATFORM_CONTRACT not set in .env"
+            "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
         )
         return
 
@@ -46,7 +46,7 @@ def cli(account_name, contract_address, token_address, network):
         print(f"Caller      : {akun.address}")
         print(f"Balance     : {saldo_eth} {token_symbol}")
 
-        contract = project.TreasuryPlatform.at(contract_address)
+        contract = project.CompetitionManager.at(contract_address)
         print(f"Contract    : {contract.address}")
 
         owner_address = contract.owner()
@@ -62,14 +62,19 @@ def cli(account_name, contract_address, token_address, network):
 
         if token_address == NATIVE_TOKEN:
             owner_balance = provider.get_balance(owner_address)
+            contract_balance = provider.get_balance(contract.address)
         else:
             erc20 = Contract(token_address)
             owner_balance = erc20.balanceOf(owner_address)
+            contract_balance = erc20.balanceOf(contract.address)
 
         owner_balance_eth = owner_balance / 10**18
+        contract_balance_eth = contract_balance / 10**18
 
         print(f"\n{'='*50}")
-        print("Treasury Balance (Owner)")
+        print("Treasury Balance")
         print(f"{'='*50}")
-        print(f"  Owner   : {owner_address}")
-        print(f"  Balance : {owner_balance_eth} {token_symbol} ({owner_balance} wei)")
+        print(f"  Owner Address    : {owner_address}")
+        print(f"  Owner Balance    : {owner_balance_eth} {token_symbol} ({owner_balance} wei)")
+        print(f"  Contract Address : {contract.address}")
+        print(f"  Contract Balance : {contract_balance_eth} {token_symbol} ({contract_balance} wei)")

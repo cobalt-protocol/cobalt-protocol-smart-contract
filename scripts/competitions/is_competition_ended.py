@@ -44,13 +44,12 @@ def cli(account_name, competition_id, contract_address, network):
             return
 
         ended = contract.isCompetitionEnded(competition_id)
-        sched = comp.schedule
-        claim_ts = sched.prizeCertificateClaim if hasattr(sched, "prizeCertificateClaim") else sched[5]
+        claim_ts = comp.prizeCertificateClaim
         end_at_dt = datetime.fromtimestamp(claim_ts, tz=timezone.utc)
 
         print(f"\n{'='*50}")
         print(f"Competition #{competition_id} Status")
         print(f"{'='*50}")
-        print(f"  Name       : {comp.name}")
+        print(f"  CID        : ipfs://{comp.cid}")
         print(f"  Claim End  : {end_at_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} ({claim_ts})")
         print(f"  Ended      : {'Yes' if ended else 'No'}")
