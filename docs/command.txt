@@ -29,8 +29,8 @@ ape run accounts check_balance organization --token 0x75edC9335175Fc0552D51D4843
 ape run deploy_contract <PLATFORM_ACCOUNT_NAME> <SIGNER_ACCOUNT_NAME> <ORGANIZATION_ACCOUNT_NAME> --auto-listing --network <NETWORK>
 ape run deploy_contract platform signer organization --auto-listing --network bot_chain:bot_chain_test_net:node
 ape run deploy_contract platform signer organization --no-auto-listing --network bot_chain:bot_chain_test_net:node
-ape run deploy_contract platform signer organization --network bot_chain:bot_chain_main_net:node
-ape run setup_platform platform --network bot_chain:bot_chain_main_net:node
+ape run deploy_contract platform signer organization --network bot_chain:bot_chain_test_net:node
+ape run setup_platform platform --network bot_chain:bot_chain_test_net:node
 
 
 # Option B: Deploy without auto-listing
