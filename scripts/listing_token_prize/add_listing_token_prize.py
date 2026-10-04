@@ -43,8 +43,8 @@ def cli(account_name, token_address, contract_address, network):
         print(f"Contract    : {contract.address}")
         print(f"Token to List: {token_address}")
 
-        print("\nAdding listing token prize...")
-        tx = contract.addListingTokenPrize(token_address, sender=akun)
+        print("\nAdding listing token...")
+        tx = contract.addListingToken(token_address, sender=akun)
 
         print(f"TX Hash     : {tx.txn_hash}")
-        print("Add listing token prize success!")
+        print("Add listing token success!")

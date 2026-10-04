@@ -63,7 +63,23 @@ def cli(platform_account_name, contract_address, fee_amount, usdt_address, netwo
         print(f"Platform Account: {account_platform.address}")
         print(f"Contract        : {contract.address}")
 
-        print("\n--- Command 1: Setting Platform Fee (0.5 BOT) ---")
+        print("\n--- Command 1: Adding Native Token to Listing Token ---")
+        if not contract.isTokenListed(NATIVE_TOKEN):
+            print(f"Adding Native Token ({NATIVE_TOKEN})...")
+            tx1 = contract.addListingToken(NATIVE_TOKEN, sender=account_platform)
+            print(f"Native Token TX : {tx1.txn_hash}")
+        else:
+            print(f"Native Token ({NATIVE_TOKEN}) is already listed.")
+
+        print("\n--- Command 2: Adding USDT Token to Listing Token ---")
+        if not contract.isTokenListed(usdt_address):
+            print(f"Adding USDT Token ({usdt_address})...")
+            tx2 = contract.addListingToken(usdt_address, sender=account_platform)
+            print(f"USDT Token TX   : {tx2.txn_hash}")
+        else:
+            print(f"USDT Token ({usdt_address}) is already listed.")
+
+        print("\n--- Command 3: Setting Platform Fee (0.5 BOT) ---")
         treasury_fee_wei = int(fee_amount * 10**18)
         fee_metadata = {
             "name": f"Platform Fee Tier ({fee_amount} {token_symbol})",
@@ -76,23 +92,7 @@ def cli(platform_account_name, contract_address, fee_amount, usdt_address, netwo
         print(f"Fee Metadata CID: {cid}")
 
         print(f"Setting platform fee ({fee_amount} {token_symbol})...")
-        tx1 = contract.setPriceCompetitionFee(treasury_fee_wei, NATIVE_TOKEN, cid, sender=account_platform)
-        print(f"Fee TX Hash     : {tx1.txn_hash}")
-
-        print("\n--- Command 2: Adding Native Token to ListingTokenPrize ---")
-        if not contract.isTokenListed(NATIVE_TOKEN):
-            print(f"Adding Native Token ({NATIVE_TOKEN})...")
-            tx2 = contract.addListingTokenPrize(NATIVE_TOKEN, sender=account_platform)
-            print(f"Native Token TX : {tx2.txn_hash}")
-        else:
-            print(f"Native Token ({NATIVE_TOKEN}) is already listed.")
-
-        print("\n--- Command 3: Adding USDT Token to ListingTokenPrize ---")
-        if not contract.isTokenListed(usdt_address):
-            print(f"Adding USDT Token ({usdt_address})...")
-            tx3 = contract.addListingTokenPrize(usdt_address, sender=account_platform)
-            print(f"USDT Token TX   : {tx3.txn_hash}")
-        else:
-            print(f"USDT Token ({usdt_address}) is already listed.")
+        tx3 = contract.setPriceCompetitionFee(treasury_fee_wei, NATIVE_TOKEN, cid, sender=account_platform)
+        print(f"Fee TX Hash     : {tx3.txn_hash}")
 
         print("\nAll 3 setup commands executed successfully!")

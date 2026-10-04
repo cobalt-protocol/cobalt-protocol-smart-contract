@@ -43,8 +43,8 @@ def cli(account_name, token_address, contract_address, network):
         print(f"Contract      : {contract.address}")
         print(f"Token to Stop : {token_address}")
 
-        print("\nDeactivating listing token prize...")
-        tx = contract.deactivateListingTokenPrize(token_address, sender=akun)
+        print("\nDeactivating listing token...")
+        tx = contract.deactivateListingToken(token_address, sender=akun)
 
         print(f"TX Hash       : {tx.txn_hash}")
-        print("Deactivate listing token prize success!")
+        print("Deactivate listing token success!")
