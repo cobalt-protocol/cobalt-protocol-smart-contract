@@ -46,27 +46,53 @@ def test_signer_update(competition_manager, owner):
 
 def test_listing_token(competition_manager, owner):
     assert not competition_manager.isTokenListed(NATIVE_TOKEN)
-    competition_manager.addListingTokenPrize(NATIVE_TOKEN, sender=owner)
+    competition_manager.addListingToken(NATIVE_TOKEN, sender=owner)
     assert competition_manager.isTokenListed(NATIVE_TOKEN)
+    assert competition_manager.isTokenActive(NATIVE_TOKEN)
 
-    competition_manager.deactivateListingTokenPrize(NATIVE_TOKEN, sender=owner)
+    competition_manager.deactivateListingToken(NATIVE_TOKEN, sender=owner)
     token_info = competition_manager.listingToken(NATIVE_TOKEN)
     assert not token_info.isActive
+    assert not competition_manager.isTokenActive(NATIVE_TOKEN)
 
 
 def test_price_fee(competition_manager, owner):
+    competition_manager.addListingToken(NATIVE_TOKEN, sender=owner)
     competition_manager.setPriceCompetitionFee(
-        100, NATIVE_TOKEN, "Tier 1", "Standard Fee", sender=owner
+        100, NATIVE_TOKEN, "Tier 1", sender=owner
     )
     fee = competition_manager.getPriceCompetitionFee(1)
     assert fee.id == 1
     assert fee.treasuryFee == 100
     assert fee.tokenAddress == NATIVE_TOKEN
-    assert fee.title == "Tier 1"
+    assert fee.cid == "Tier 1"
+
+
+def test_price_fee_requires_listed_token(competition_manager, owner):
+    # Fee token yang belum terdaftar harus ditolak.
+    with pytest.raises(Exception) as exc_info:
+        competition_manager.setPriceCompetitionFee(
+            100, NATIVE_TOKEN, "Tier 1", sender=owner
+        )
+    assert exc_info.type.__name__ == "TokenNotListed"
+
+    # Setelah terdaftar & aktif, fee bisa di-set.
+    competition_manager.addListingToken(NATIVE_TOKEN, sender=owner)
+    competition_manager.setPriceCompetitionFee(
+        100, NATIVE_TOKEN, "Tier 1", sender=owner
+    )
+
+    # Token yang sudah nonaktif tidak boleh dipakai sebagai fee token.
+    competition_manager.deactivateListingToken(NATIVE_TOKEN, sender=owner)
+    with pytest.raises(Exception) as exc_info:
+        competition_manager.updatePriceCompetitionFee(
+            1, 200, NATIVE_TOKEN, "Tier 2", sender=owner
+        )
+    assert exc_info.type.__name__ == "TokenNotActive"
 
 
 def test_create_competition_and_winner(competition_manager, owner, organization, participant):
-    competition_manager.addListingTokenPrize(NATIVE_TOKEN, sender=owner)
+    competition_manager.addListingToken(NATIVE_TOKEN, sender=owner)
     competition_manager.setPriceCompetitionFee(0, NATIVE_TOKEN, "Free", "Free Fee", sender=owner)
 
     now = int(time.time())
@@ -109,7 +135,7 @@ def test_create_competition_and_winner(competition_manager, owner, organization,
 
 
 def test_soulbound_nft_mint_and_transfer(competition_manager, owner, organization, participant, signer_account, provider):
-    competition_manager.addListingTokenPrize(NATIVE_TOKEN, sender=owner)
+    competition_manager.addListingToken(NATIVE_TOKEN, sender=owner)
     competition_manager.setPriceCompetitionFee(0, NATIVE_TOKEN, "Free", "Free Fee", sender=owner)
 
     now = int(provider.chain.blocks.head.timestamp)
