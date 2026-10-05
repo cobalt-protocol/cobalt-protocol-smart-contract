@@ -7,8 +7,10 @@ library CertificateHelper {
     function certId(
         uint256 _competitionId,
         uint256 _teamId,
-        address _wallet
+        address _wallet,
+        string calldata _cid
     ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_competitionId, _teamId, _wallet));
+        return
+            keccak256(abi.encodePacked(_competitionId, _teamId, _wallet, _cid));
     }
 }

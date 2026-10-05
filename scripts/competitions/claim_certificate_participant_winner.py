@@ -95,9 +95,11 @@ def cli(account_name, winner_id, contract_address, network):
         contract_checksum = Web3.to_checksum_address(contract.address)
         caller_checksum = Web3.to_checksum_address(akun.address)
 
+        # Single msg.sender — must match CompetitionManager.safeMintCertificateParticipantWinner
+        # keccak256(abi.encodePacked(address(this), msg.sender, _winnerId, uri))
         msg_hash = Web3.solidity_keccak(
-            ["address", "address", "address", "uint256", "string"],
-            [contract_checksum, caller_checksum, caller_checksum, winner_id, certificate_uri],
+            ["address", "address", "uint256", "string"],
+            [contract_checksum, caller_checksum, winner_id, certificate_uri],
         )
         signable_msg = encode_defunct(primitive=msg_hash)
         signed_msg = signer_account.sign_message(signable_msg)

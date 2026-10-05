@@ -46,7 +46,7 @@ def update_env(competition_address: str):
 
     set_key(
         env_path,
-        "LISTING_TOKEN_PRIZE_CONTRACT",
+        "LISTING_TOKEN_CONTRACT",
         competition_address,
     )
 

@@ -22,7 +22,7 @@ Sebelum membuat kompetisi, pastikan prasyarat berikut telah terpenuhi:
 1. **Platform Fee Option Terdaftar**
    - Pemilik (*Owner*) platform telah menambahkan opsi fee pada `PriceCompetitionManager`. Setiap opsi fee memiliki `platformFeeId`.
 2. **Token Hadiah Terdaftar**
-   - Token yang digunakan sebagai hadiah (*prize token*) harus sudah didaftarkan dan aktif pada `ListingTokenPrizeContract`.
+   - Token yang digunakan sebagai hadiah (*prize token*) harus sudah didaftarkan dan aktif pada `ListingTokenContract`.
    - Untuk Native Token (misalnya ETH/BotChain Native), gunakan alamat `0x0000000000000000000000000000000000000000`.
 3. **Keterbatasan Token Hadiah**
    - Seluruh pemenang dalam satu kompetisi **harus menggunakan jenis token hadiah yang sama** (*uniform prize token*).
@@ -121,7 +121,7 @@ function createCompetition(
 2. **Validasi Pemenang**:
    `require(_winners.length > 0, "Must have at least one winner");`
 3. **Pendaftaran & Validasi Hadiah**:
-   - Memastikan setiap token hadiah terdaftar dan aktif di `ListingTokenPrizeContract`.
+   - Memastikan setiap token hadiah terdaftar dan aktif di `ListingTokenContract`.
    - Menghitung `totalPrizeAmount`.
 4. **Pembayaran Fee Platform**:
    - Jika fee Native: Mengirim ETH ke `TreasuryPlatform.addTreasuryFrom`.

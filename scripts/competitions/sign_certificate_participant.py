@@ -1,7 +1,7 @@
 import os
 
 import click
-from ape import accounts, networks, project
+from ape import networks, project
 from dotenv import load_dotenv
 from eth_account import Account
 from eth_account.messages import encode_defunct
@@ -11,7 +11,7 @@ load_dotenv()
 
 
 @click.command()
-@click.argument("account_name")
+@click.argument("participant_address")
 @click.argument("competition_id", type=int)
 @click.option(
     "--team-id",
@@ -27,7 +27,7 @@ load_dotenv()
     help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
-def cli(account_name, competition_id, team_id, contract_address, network):
+def cli(participant_address, competition_id, team_id, contract_address, network):
     contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("CERTIFICATE_COMPETITION_CONTRACT")
     if not contract_address:
         print(
@@ -42,25 +42,26 @@ def cli(account_name, competition_id, team_id, contract_address, network):
 
     signer_account = Account.from_key(private_key_signer)
 
+    # Validate participant address early
+    try:
+        participant_checksum_early = Web3.to_checksum_address(participant_address)
+    except Exception:
+        print(f"Error: Invalid participant address '{participant_address}'")
+        return
+
+    if team_id <= 0:
+        print("Error: --team-id must be a positive integer.")
+        return
+
     with networks.parse_network_choice(network) as provider:
         print(f"Active Network: {provider.network.name}")
-        try:
-            akun = accounts.load(account_name)
-        except KeyError:
-            print(f"Error: Account '{account_name}' is not found in Ape.")
-            return
-
-        token_symbol = provider.network.ecosystem.fee_token_symbol
-        saldo_eth = akun.balance / 10**18
-
         contract = project.CompetitionManager.at(contract_address)
         contract_signer = contract.signerAddress()
 
-        print(f"Caller               : {akun.address}")
         print(f"Local Signer         : {signer_account.address}")
         print(f"Contract Signer      : {contract_signer}")
-        print(f"Balance              : {saldo_eth} {token_symbol}")
         print(f"Contract             : {contract.address}")
+        print(f"Participant          : {participant_checksum_early}")
 
         if signer_account.address.lower() != contract_signer.lower():
             print(
@@ -84,45 +85,45 @@ def cli(account_name, competition_id, team_id, contract_address, network):
         certificate_uri = comp.certificateCID if comp.certificateCID else ""
         # NOTE: raw CID only — matches CompetitionManager.safeMintCertificateParticipant hash (cid, not ipfs:// uri)
 
-        if team_id <= 0:
-            print("Error: team_id must be a positive integer.")
-            return
+        if not comp.certificateCID:
+            print("Warning: Competition certificateCID is empty, using empty CID.")
 
         print(f"\n{'='*50}")
-        print("Claim Certificate Participant")
+        print("Sign Certificate Participant")
         print(f"{'='*50}")
         print(f"Competition    : #{comp.id}")
         print(f"Organization   : {comp.organization}")
-        print(f"Participant    : {akun.address}")
+        print(f"Participant    : {participant_checksum_early}")
         print(f"Team ID        : {team_id}")
         print(f"Certificate URI: {certificate_uri}")
 
         print("\nGenerating signature from PRIVATE_KEY_SIGNER...")
         contract_checksum = Web3.to_checksum_address(contract.address)
-        caller_checksum = Web3.to_checksum_address(akun.address)
+        participant_checksum = Web3.to_checksum_address(participant_address)
 
-        # Single msg.sender — must match CompetitionManager.safeMintCertificateParticipant
-        # keccak256(abi.encodePacked(address(this), msg.sender, _competitionId, _teamId, cid))
-        # cid = competition.certificateCID raw (no ipfs:// prefix)
+        # Must match CompetitionManager.safeMintCertificateParticipant:
+        # keccak256(abi.encodePacked(
+        #   address(this),
+        #   msg.sender,
+        #   _competitionId,
+        #   _teamId,
+        #   cid
+        # ))
+        # where cid = competition.certificateCID raw (no ipfs:// prefix)
+        # verified via CompetitionHelper.verifySig -> ECDSA.recover(toEthSignedMessageHash(hash), sig)
+        # NOTE: single msg.sender — duplicate was a copy-paste bug, wastes gas & causes mismatch if not synced.
         msg_hash = Web3.solidity_keccak(
             ["address", "address", "uint256", "uint256", "string"],
-            [contract_checksum, caller_checksum, competition_id, team_id, certificate_uri],
+            [contract_checksum, participant_checksum, competition_id, team_id, certificate_uri],
         )
         signable_msg = encode_defunct(primitive=msg_hash)
         signed_msg = signer_account.sign_message(signable_msg)
-        signature = signed_msg.signature
+        sig_hex = signed_msg.signature.hex()
+        signature_formatted = sig_hex if sig_hex.startswith("0x") else f"0x{sig_hex}"
 
-        print("Minting certificate with signature...")
-
-        tx = contract.safeMintCertificateParticipant(
-            competition_id,
-            team_id,
-            signature,
-            sender=akun,
-        )
-
-        print(f"\nTX Hash        : {tx.txn_hash}")
-        print("Claim certificate participant success!")
+        print(f"\nSignature      : {signature_formatted}")
+        print("Signature generated successfully!")
 
 
-
+if __name__ == "__main__":
+    cli()

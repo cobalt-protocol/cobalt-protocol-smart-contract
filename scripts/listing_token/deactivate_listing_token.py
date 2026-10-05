@@ -18,7 +18,7 @@ load_dotenv()
 )
 @click.option("--network", help="Network specifier")
 def cli(account_name, token_address, contract_address, network):
-    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("LISTING_TOKEN_PRIZE_CONTRACT")
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("LISTING_TOKEN_CONTRACT")
     if not contract_address:
         print(
             "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"
@@ -36,23 +36,15 @@ def cli(account_name, token_address, contract_address, network):
         token_symbol = provider.network.ecosystem.fee_token_symbol
         saldo_eth = akun.balance / 10**18
 
-        print(f"Caller      : {akun.address}")
-        print(f"Balance     : {saldo_eth} {token_symbol}")
+        print(f"Caller        : {akun.address}")
+        print(f"Balance       : {saldo_eth} {token_symbol}")
 
         contract = project.CompetitionManager.at(contract_address)
-        print(f"Contract    : {contract.address}")
-        print(f"Token Address: {token_address}")
+        print(f"Contract      : {contract.address}")
+        print(f"Token to Stop : {token_address}")
 
-        print("\nChecking if token is listed...")
-        is_listed = contract.isTokenListed(token_address)
+        print("\nDeactivating listing token...")
+        tx = contract.deactivateListingToken(token_address, sender=akun)
 
-        token_info = contract.listingToken(token_address)
-
-        print(f"\n{'='*50}")
-        print("Token Listing Status")
-        print(f"{'='*50}")
-        print(f"Is Listed    : {is_listed}")
-        if is_listed:
-            print(f"Listing ID   : {token_info.id}")
-            print(f"Token Address: {token_info.tokenAddress}")
-            print(f"Is Active    : {token_info.isActive}")
+        print(f"TX Hash       : {tx.txn_hash}")
+        print("Deactivate listing token success!")

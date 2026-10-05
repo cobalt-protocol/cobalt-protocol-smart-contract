@@ -15,8 +15,8 @@ Contract Title: CompetitionManager
 Contract Address: 0x2938eabf29e9F7ecaff7E11ca9794DFa904e78D7
 Short Description: The core smart contract managing the complete competition lifecycle, including creation, platform fee collection, prize escrow locking, winner assignment, and automated prize payouts.
 
-4. ListingTokenPrize
-Contract Title: ListingTokenPrizeContract
+4. ListingToken
+Contract Title: ListingTokenContract
 Contract Address: 0xc58097764cB12dd8f0A0d845aD310a1d939E2806
 Short Description: A whitelist smart contract managing permitted Native and ERC-20 tokens allowed for competition prize allocations.
 

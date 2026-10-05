@@ -18,7 +18,7 @@ load_dotenv()
 )
 @click.option("--network", help="Network specifier")
 def cli(account_name, token_address, contract_address, network):
-    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("LISTING_TOKEN_PRIZE_CONTRACT")
+    contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("LISTING_TOKEN_CONTRACT")
     if not contract_address:
         print(
             "Error: Contract address not provided and COMPETITION_CONTRACT not set in .env"

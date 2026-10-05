@@ -1,6 +1,5 @@
-import time
 import pytest
-from ape import accounts, project
+from ape import accounts, project, chain
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from web3 import Web3
@@ -93,28 +92,26 @@ def test_price_fee_requires_listed_token(competition_manager, owner):
 
 def test_create_competition_and_winner(competition_manager, owner, organization, participant):
     competition_manager.addListingToken(NATIVE_TOKEN, sender=owner)
-    competition_manager.setPriceCompetitionFee(0, NATIVE_TOKEN, "Free", "Free Fee", sender=owner)
+    competition_manager.setPriceCompetitionFee(0, NATIVE_TOKEN, "Free", sender=owner)
 
-    now = int(time.time())
-    schedule = (now, now, now + 10, now + 10, now + 10, now + 100)
-    competition_data = (
-        0,
-        "Hackathon",
-        "Web3",
-        "Build dApp",
-        "Must be open source",
-        competition_manager.FORMATION_1_3_MEMBER(),
-        organization.address,
-        schedule,
-        "certCID",
-        "guideCID",
+    now = chain.pending_timestamp
+    claim = now + 100
+    competition = (
+        0,                    # id (di-overwrite kontrak)
+        "Hackathon",          # cid
+        "1-3 member",         # formation
+        organization.address, # organization
+        claim,                # prizeCertificateClaim
+        "certCID",            # certificateCID
+        (NATIVE_TOKEN, 0),    # payment (tokenAddress, fee)
     )
     winners_data = [
-        (0, 0, "1st Place", NATIVE_TOKEN, 1000, "winnerCertCID"),
+        (0, 0, NATIVE_TOKEN, 1000, "winnerCertCID", 1),
     ]
 
-    tx = competition_manager.createCompetition(
-        competition_data,
+    competition_manager.createCompetition(
+        competition,
+        (NATIVE_TOKEN, 0),
         winners_data,
         1,
         sender=organization,
@@ -122,7 +119,7 @@ def test_create_competition_and_winner(competition_manager, owner, organization,
     )
 
     comp = competition_manager.getCompetition(1)
-    assert comp.name == "Hackathon"
+    assert comp.cid == "Hackathon"
     assert comp.organization == organization.address
 
     winners = competition_manager.getWinners(1)
@@ -134,59 +131,126 @@ def test_create_competition_and_winner(competition_manager, owner, organization,
     assert participant.balance == bal_before + 1000
 
 
-def test_soulbound_nft_mint_and_transfer(competition_manager, owner, organization, participant, signer_account, provider):
+def test_soulbound_nft_mint_and_transfer(competition_manager, owner, organization, participant, signer_account):
     competition_manager.addListingToken(NATIVE_TOKEN, sender=owner)
-    competition_manager.setPriceCompetitionFee(0, NATIVE_TOKEN, "Free", "Free Fee", sender=owner)
+    competition_manager.setPriceCompetitionFee(0, NATIVE_TOKEN, "Free", sender=owner)
 
-    now = int(provider.chain.blocks.head.timestamp)
-    # Prize certificate claim window in past so onlyCompetitionEnd passes
-    schedule = (now - 100, now - 100, now - 50, now - 50, now - 50, now - 10)
-    competition_data = (
-        0,
-        "Ended Hackathon",
-        "Web3",
-        "Build dApp",
-        "Requirements",
-        competition_manager.FORMATION_1_3_MEMBER(),
-        organization.address,
-        schedule,
-        "certCID",
-        "guideCID",
+    now = chain.pending_timestamp
+    claim = now + 100
+    competition = (
+        0, "Ended Hackathon", "1-3 member", organization.address,
+        claim, "certCID", (NATIVE_TOKEN, 0),
     )
     winners_data = [
-        (0, 0, "1st Place", NATIVE_TOKEN, 100, "winnerCertCID"),
+        (0, 0, NATIVE_TOKEN, 100, "winnerCertCID", 1),
     ]
 
     competition_manager.createCompetition(
-        competition_data,
+        competition,
+        (NATIVE_TOKEN, 0),
         winners_data,
         1,
         sender=organization,
         value=100,
     )
 
-    uri = f"ipfs://certCID"
+    # Majukan waktu melewati batas klaim agar minting diizinkan.
+    chain.pending_timestamp = claim + 1
+
+    uri = "ipfs://certCID"
     contract_checksum = Web3.to_checksum_address(competition_manager.address)
     participant_checksum = Web3.to_checksum_address(participant.address)
 
+    # Single msg.sender — must match CompetitionManager.safeMintCertificateParticipant
+    # keccak256(abi.encodePacked(address(this), msg.sender, _competitionId, _teamId, uri))
     msg_hash = Web3.solidity_keccak(
-        ["address", "address", "address", "uint256", "string"],
-        [contract_checksum, participant_checksum, participant_checksum, 1, uri],
+        ["address", "address", "uint256", "uint256", "string"],
+        [contract_checksum, participant_checksum, 1, 1, uri],
     )
     signable_msg = encode_defunct(primitive=msg_hash)
     signed_msg = signer_account.sign_message(signable_msg)
     signature = signed_msg.signature
 
-    tx = competition_manager.safeMintCertificateParticipant(
-        1,
-        signature,
-        sender=participant,
+    competition_manager.safeMintCertificateParticipant(
+        1, 1, signature, sender=participant,
     )
 
     assert competition_manager.ownerOf(0) == participant.address
 
-    # Verify Soulbound requirement: transfer should revert
+    # Verify Soulbound requirement: transfer should revert.
     with pytest.raises(Exception) as exc_info:
         competition_manager.transferFrom(participant.address, owner.address, 0, sender=participant)
-    assert "Certificate NFTs are non-transferable" in str(exc_info.value)
+    assert exc_info.type.__name__ == "CertificateNonTransferable"
+
+
+def test_payment_create_team_native(competition_manager, owner, organization, participant):
+    # Setup: buat kompetisi dengan fee pembuatan tim 100 (native).
+    competition_manager.addListingToken(NATIVE_TOKEN, sender=owner)
+    competition_manager.setPriceCompetitionFee(0, NATIVE_TOKEN, "Free", sender=owner)
+
+    now = chain.pending_timestamp
+    claim = now + 100
+    competition = (
+        0, "compCID", "1-3 member", organization.address, claim, "certCID",
+        (NATIVE_TOKEN, 100),
+    )
+    winners_data = [
+        (0, 0, NATIVE_TOKEN, 100, "winnerCertCID", 1),
+    ]
+
+    competition_manager.createCompetition(
+        competition,
+        (NATIVE_TOKEN, 100),
+        winners_data,
+        1,
+        sender=organization,
+        value=100,
+    )
+
+    # Sukses: pembayaran pembuatan tim menggunakan ETH asli.
+    tx = competition_manager.paymentCreateTeam(
+        1, "team-payment", NATIVE_TOKEN, participant.address, organization.address, 100,
+        sender=participant, value=100,
+    )
+    assert competition_manager.totalPaid(1, NATIVE_TOKEN) == 100
+
+    logs = list(tx.decode_logs(competition_manager.TeamPaymentCreated))
+    assert len(logs) == 1
+    assert logs[0].competitionId == 1
+    assert logs[0].token == NATIVE_TOKEN
+    assert logs[0].event_arguments["from"] == participant.address
+    assert logs[0].to == organization.address
+    assert logs[0].amount == 100
+
+    # Revert: untuk native, from harus msg.sender.
+    with pytest.raises(Exception) as exc_info:
+        competition_manager.paymentCreateTeam(
+            1, "team-payment", NATIVE_TOKEN, owner.address, organization.address, 100,
+            sender=participant, value=100,
+        )
+    assert exc_info.type.__name__ == "NativeFromMismatch"
+
+    # Revert: msg.value harus sama dengan amount.
+    with pytest.raises(Exception) as exc_info:
+        competition_manager.paymentCreateTeam(
+            1, "team-payment", NATIVE_TOKEN, participant.address, organization.address, 100,
+            sender=participant, value=50,
+        )
+    assert exc_info.type.__name__ == "IncorrectNativeAmount"
+
+    # Revert: penerima tidak boleh address(0).
+    with pytest.raises(Exception) as exc_info:
+        competition_manager.paymentCreateTeam(
+            1, "team-payment", NATIVE_TOKEN, participant.address, NATIVE_TOKEN, 100,
+            sender=participant, value=100,
+        )
+    assert exc_info.type.__name__ == "InvalidRecipient"
+
+    # Revert: amount harus sama dengan fee kompetisi.
+    with pytest.raises(Exception) as exc_info:
+        competition_manager.paymentCreateTeam(
+            1, "team-payment", NATIVE_TOKEN, participant.address, organization.address, 50,
+            sender=participant, value=50,
+        )
+    assert exc_info.type.__name__ == "IncorrectFeeAmount"
 

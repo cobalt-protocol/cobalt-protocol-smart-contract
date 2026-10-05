@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
+"""Versi TANPA fee tim (gratis).
+
+Sama seperti `create_competition.py`, tetapi kompetisi yang dibuat tidak
+memungut biaya pendaftaran tim:
+- `competition.tokenAddress` dipaksa menjadi NATIVE_TOKEN (address 0).
+- `competition.fee` dipaksa menjadi 0.
+
+Catatan: `CompetitionManager.createCompetition` tetap mewajibkan
+`tokenAddress` terdaftar & aktif di `listingToken`. Pastikan NATIVE_TOKEN
+(0x0000000000000000000000000000000000000000) sudah di-listing oleh owner
+via `addListingToken` sebelum menjalankan script ini.
+"""
 import json
 import os
-from datetime import datetime, timezone
-from decimal import Decimal
+from datetime import datetime, timezone, timedelta
 
 import click
 import requests
@@ -127,31 +138,7 @@ def is_dummy_cid(val: str) -> bool:
     return False
 
 
-def cid_exists_on_kubo(cid: str) -> bool:
-    """Cek apakah CID benar-benar tersedia di node Kubo lokal.
-
-    Dipakai untuk membedakan CID asli (ter-pin) dari placeholder hardcoded
-    yang terlihat valid namun tidak pernah di-upload (mis. dari example JSON).
-    """
-    if not cid or not isinstance(cid, str):
-        return False
-    cid = cid.strip()
-    if cid.startswith("ipfs://"):
-        cid = cid[7:]
-    if not cid:
-        return False
-
-    base_url = os.getenv("KUBO_API_URL", "http://localhost:5001").rstrip("/")
-    endpoint = f"{base_url}/api/v0/block/stat?arg={cid}"
-    try:
-        response = requests.post(endpoint, timeout=5)
-        return response.status_code == 200
-    except Exception:
-        return False
-
-
 def resolve_or_upload_file_cid(input_val: str, default_file_path: str, file_label: str) -> str:
-    # 1) Jika berupa path file lokal, upload file tersebut.
     if input_val and os.path.exists(input_val):
         print(f"Uploading {file_label} file '{input_val}' to Kubo IPFS...")
         cid = upload_file_to_kubo_ipfs(input_val)
@@ -159,26 +146,17 @@ def resolve_or_upload_file_cid(input_val: str, default_file_path: str, file_labe
             print(f"Uploaded {file_label} CID: {cid}")
             return cid
 
-    # 2) Jika CID valid dan benar-benar tersedia di IPFS, pakai apa adanya.
-    if not is_dummy_cid(input_val) and cid_exists_on_kubo(input_val):
-        return input_val
-
-    # 3) Selebihnya (dummy / placeholder yang tidak ada), upload file default.
-    if not is_dummy_cid(input_val):
-        print(
-            f"Warning: {file_label} CID '{input_val}' is not available on IPFS; "
-            "uploading default file instead."
-        )
-
-    if os.path.exists(default_file_path):
-        print(f"Uploading default {file_label} file ({os.path.basename(default_file_path)}) to Kubo IPFS...")
-        cid = upload_file_to_kubo_ipfs(default_file_path)
-        if cid:
-            print(f"Uploaded {file_label} CID: {cid}")
-            return cid
-        print(f"Warning: Failed to upload default {file_label} file to Kubo IPFS.")
-    else:
-        print(f"Warning: Default {file_label} file not found at '{default_file_path}'.")
+    if is_dummy_cid(input_val):
+        if os.path.exists(default_file_path):
+            print(f"Uploading default {file_label} file ({os.path.basename(default_file_path)}) to Kubo IPFS...")
+            cid = upload_file_to_kubo_ipfs(default_file_path)
+            if cid:
+                print(f"Uploaded {file_label} CID: {cid}")
+                return cid
+            else:
+                print(f"Warning: Failed to upload default {file_label} file to Kubo IPFS.")
+        else:
+            print(f"Warning: Default {file_label} file not found at '{default_file_path}'.")
 
     return input_val
 
@@ -236,10 +214,10 @@ def cli(account_name, input_json, contract_address, network):
         treasury_fee = fee_data.treasuryFee
         fee_token = fee_data.tokenAddress
 
-        # Team-creation fee token & amount (digunakan oleh paymentCreateTeam).
-        # Diambil dari konfigurasi kompetisi, BUKAN platform fee pembuatan kompetisi.
-        competition_token = competition.get("tokenAddress", NATIVE_TOKEN)
-        competition_fee_raw = competition.get("fee", 0)
+        # Versi TANPA fee tim: kompetisi gratis (tidak memungut biaya pembuatan tim).
+        # tokenAddress dipaksa NATIVE_TOKEN dan fee = 0 agar sesuai struktur
+        # Competitions on-chain (tokenAddress tetap harus terdaftar & aktif).
+        competition_token = NATIVE_TOKEN
 
         if not winners_data:
             print("Error: Competition must have at least one winner.")
@@ -261,10 +239,10 @@ def cli(account_name, input_json, contract_address, network):
 
         listed_competition_token = contract.listingToken(competition_token)
         if listed_competition_token.id == 0:
-            print(f"Error: Competition team fee token ({competition_token}) is not listed in CompetitionManager.")
+            print(f"Error: Competition token ({competition_token}) is not listed in CompetitionManager. Ask the owner to run addListingToken(NATIVE_TOKEN).")
             return
         if not listed_competition_token.isActive:
-            print(f"Error: Competition team fee token ({competition_token}) is listed but deactivated in CompetitionManager.")
+            print(f"Error: Competition token ({competition_token}) is listed but deactivated in CompetitionManager.")
             return
 
         if fee_token == NATIVE_TOKEN:
@@ -288,14 +266,11 @@ def cli(account_name, input_json, contract_address, network):
         judging_review = sub_deadline + interval_seconds
         result_announcement = judging_review + interval_seconds
         prize_claim = result_announcement + interval_seconds
+        duration_desc = "30 seconds (5s intervals)"
 
         org_setting = competition.get("organization", NATIVE_TOKEN)
         effective_org = akun.address if not org_setting or org_setting == NATIVE_TOKEN else org_setting
         formation_input = competition.get("formation", "1-3 member")
-
-        if formation_input not in ("1-3 member", "1-5 member"):
-            print(f"Error: Formation '{formation_input}' is invalid. Valid options: '1-3 member' or '1-5 member'.")
-            return
 
         SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
         DEFAULT_CERT_FILE = os.path.join(SCRIPT_DIR, "1600w-CzqD3cdSM08.webp")
@@ -362,23 +337,12 @@ def cli(account_name, input_json, contract_address, network):
 
         prize_token_decimals = get_token_decimals(first_prize_token)
         fee_token_decimals = get_token_decimals(fee_token)
-        competition_token_decimals = get_token_decimals(competition_token)
 
         def parse_prize_wei(val, decimals=18):
-            # Gunakan Decimal agar tidak kehilangan presisi (float dapat
-            # membulatkan nilai wei, mis. 0.1 token -> 99999999999999999).
-            amount = Decimal(str(val))
-            if amount >= Decimal(10) ** 9:
-                # Sudah dalam satuan wei (integer besar).
-                return int(amount)
-            return int(amount * (Decimal(10) ** decimals))
+            f_val = float(val)
+            return int(f_val * 10**decimals) if f_val < 10**9 else int(f_val)
 
-        competition_fee_wei = (
-            parse_prize_wei(competition_fee_raw, competition_token_decimals)
-            if competition_fee_raw else 0
-        )
-
-        payment_input = (competition_token, competition_fee_wei)
+        payment_input = (NATIVE_TOKEN, 0)
 
         competition_input = (
             0,
@@ -386,7 +350,7 @@ def cli(account_name, input_json, contract_address, network):
             formation_input,
             effective_org,
             prize_claim,
-            competition.get("certificateCID", ""),
+            competition["certificateCID"],
             payment_input,
         )
 
@@ -402,15 +366,12 @@ def cli(account_name, input_json, contract_address, network):
                 print(f"Error: Winner [{i}] teamId must be a positive integer.")
                 return
             prize_amount_wei = parse_prize_wei(w["prizeAmount"], prize_token_decimals)
-            if prize_amount_wei == 0:
-                print(f"Error: Winner [{i}] prizeAmount must be greater than zero.")
-                return
             winners_input.append((
                 0,
                 0,
                 w["prizeToken"],
                 prize_amount_wei,
-                w.get("certificateCID", ""),
+                w["certificateCID"],
                 team_id,
             ))
 
@@ -428,9 +389,9 @@ def cli(account_name, input_json, contract_address, network):
         print(f"Judging Review End      : {datetime.fromtimestamp(judging_review, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ({judging_review})")
         print(f"Result Announcement     : {datetime.fromtimestamp(result_announcement, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ({result_announcement})")
         print(f"Prize Certificate Claim : {claim_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} ({prize_claim})")
-        print(f"Certificate             : ipfs://{competition.get('certificateCID', '')}")
-        print(f"Team Fee Token          : {'Native Token' if competition_token == NATIVE_TOKEN else competition_token}")
-        print(f"Team Fee                : {competition_fee_wei / 10**competition_token_decimals} ({competition_fee_wei} wei)")
+        print(f"Certificate             : ipfs://{competition['certificateCID']}")
+        print(f"Team Fee Token          : Native Token")
+        print(f"Team Fee                : Free (0 wei)")
 
         print(f"\n{'='*50}")
         print(f"Winners ({len(winners_data)} total)")
@@ -441,7 +402,7 @@ def cli(account_name, input_json, contract_address, network):
             print(f"  [{i}] {w_title}")
             print(f"    Prize Token : {'Native Token' if w['prizeToken'] == NATIVE_TOKEN else w['prizeToken']}")
             print(f"    Prize Amount: {prize_amount_wei / 10**prize_token_decimals} ({prize_amount_wei} wei)")
-            print(f"    Certificate : ipfs://{w.get('certificateCID', '')}")
+            print(f"    Certificate : ipfs://{w['certificateCID']}")
             print(f"    Team ID     : {w.get('teamId', i+1)}")
 
         print("\nCreating competition...")

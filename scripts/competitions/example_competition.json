@@ -1,6 +1,6 @@
 {
   "competition": {
-    "name": "Web3 Hackathon 2026",
+    "name": "Web3 Hackathon 2026 #2",
     "category": "Hackathon",
     "description": "Build innovative dApps using blockchain technology.",
     "requirements": "Open for all developers",
@@ -16,28 +16,28 @@
       "prizeCertificateClaim": 0
     },
     "treasuryToken": "0x0000000000000000000000000000000000000000",
-    "certificateCID": "QmbXjYe8etBkpPbuuXzMj7dyc7dpGbHY8GSauL1Em7D9Ay",
-    "guideBookCID": "QmQVXAukDkho9L84gNZTgXNviny3gqyegNDP32DXk5kicx",
+    "certificateCID": "",
+    "guideBookCID": "",
     "platformFeeId": 1
   },
   "winners": [
     {
       "title": "1st Place",
       "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
-      "prizeAmount": 1,
-      "certificateCID": "QmbXjYe8etBkpPbuuXzMj7dyc7dpGbHY8GSauL1Em7D9Ay"
+      "prizeAmount": 2,
+      "certificateCID": ""
     },
     {
       "title": "2nd Place",
       "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
       "prizeAmount": 2,
-      "certificateCID": "QmbXjYe8etBkpPbuuXzMj7dyc7dpGbHY8GSauL1Em7D9Ay"
+      "certificateCID": ""
     },
     {
       "title": "3rd Place",
       "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
-      "prizeAmount": 3,
-      "certificateCID": "QmbXjYe8etBkpPbuuXzMj7dyc7dpGbHY8GSauL1Em7D9Ay"
+      "prizeAmount": 2,
+      "certificateCID": ""
     }
   ]
 }

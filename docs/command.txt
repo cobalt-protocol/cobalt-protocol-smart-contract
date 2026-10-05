@@ -77,25 +77,25 @@ ape run fee_manager get_fees platform --fee-id 1 --network bot_chain:bot_chain_t
 
 
 # ------------------------------------------------------------------------------
-# STEP 5: LISTING TOKEN PRIZE SETUP (ListingTokenPrizeContract)
+# STEP 5: LISTING TOKEN SETUP (ListingTokenContract)
 # ------------------------------------------------------------------------------
 # 5.1 Add allowed prize token (Native Token: 0x0000000000000000000000000000000000000000 or ERC20 token address)
-# Option: --contract <ADDRESS> (default: LISTING_TOKEN_PRIZE_CONTRACT from .env)
-ape run listing_token_prize add_listing_token_prize <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
-ape run listing_token_prize add_listing_token_prize platform 0x0000000000000000000000000000000000000000 --network bot_chain:bot_chain_test_net:node
-ape run listing_token_prize add_listing_token_prize platform 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
+# Option: --contract <ADDRESS> (default: LISTING_TOKEN_CONTRACT from .env)
+ape run listing_token add_listing_token <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
+ape run listing_token add_listing_token platform 0x0000000000000000000000000000000000000000 --network bot_chain:bot_chain_test_net:node
+ape run listing_token add_listing_token platform 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
 
 # 5.2 Deactivate prize token in whitelist
-# Option: --contract <ADDRESS> (default: LISTING_TOKEN_PRIZE_CONTRACT from .env)
-ape run listing_token_prize deactivate_listing_token_prize <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
-ape run listing_token_prize deactivate_listing_token_prize platform 0x1234567890abcdef1234567890abcdef12345678 --network bot_chain:bot_chain_test_net:node
-ape run listing_token_prize deactivate_listing_token_prize platform 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
+# Option: --contract <ADDRESS> (default: LISTING_TOKEN_CONTRACT from .env)
+ape run listing_token deactivate_listing_token <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
+ape run listing_token deactivate_listing_token platform 0x1234567890abcdef1234567890abcdef12345678 --network bot_chain:bot_chain_test_net:node
+ape run listing_token deactivate_listing_token platform 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
 
 # 5.3 Check if prize token is listed in whitelist
-# Option: --contract <ADDRESS> (default: LISTING_TOKEN_PRIZE_CONTRACT from .env)
-ape run listing_token_prize is_token_listed <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
-ape run listing_token_prize is_token_listed platform 0x0000000000000000000000000000000000000000 --network bot_chain:bot_chain_test_net:node
-ape run listing_token_prize is_token_listed platform 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
+# Option: --contract <ADDRESS> (default: LISTING_TOKEN_CONTRACT from .env)
+ape run listing_token is_token_listed <ACCOUNT_NAME> <TOKEN_ADDRESS> --network <NETWORK>
+ape run listing_token is_token_listed platform 0x0000000000000000000000000000000000000000 --network bot_chain:bot_chain_test_net:node
+ape run listing_token is_token_listed platform 0x75edC9335175Fc0552D51D48439F229c10420fe3 --network bot_chain:bot_chain_test_net:node
 
 
 # ------------------------------------------------------------------------------

@@ -80,19 +80,29 @@ def cli(platform_account_name, contract_address, fee_amount, usdt_address, netwo
             print(f"USDT Token ({usdt_address}) is already listed.")
 
         print("\n--- Command 3: Setting Platform Fee (0.5 BOT) ---")
-        treasury_fee_wei = int(fee_amount * 10**18)
-        fee_metadata = {
-            "name": f"Platform Fee Tier ({fee_amount} {token_symbol})",
-            "description": f"Standard platform fee of {fee_amount} {token_symbol} for creating competitions",
-            "treasuryFee": treasury_fee_wei,
-            "tokenAddress": NATIVE_TOKEN,
-        }
-        print("Uploading fee metadata to Kubo IPFS...")
-        cid = upload_to_kubo_ipfs(fee_metadata) or "QmDefaultFeeCID"
-        print(f"Fee Metadata CID: {cid}")
+        # Idempotency: Price Competition Fee (platform fee pembuatan kompetisi)
+        # hanya perlu di-set sekali. `setPriceCompetitionFee` selalu menambah
+        # opsi fee baru, jadi lewati bila sudah ada agar tidak membuat duplikat.
+        existing_fee = contract.getPriceCompetitionFee(1)
+        if existing_fee.id != 0:
+            print(
+                f"Price Competition Fee already set "
+                f"(feeId={existing_fee.id}, treasuryFee={existing_fee.treasuryFee}). Skipping."
+            )
+        else:
+            treasury_fee_wei = int(fee_amount * 10**18)
+            fee_metadata = {
+                "name": f"Platform Fee Tier ({fee_amount} {token_symbol})",
+                "description": f"Standard platform fee of {fee_amount} {token_symbol} for creating competitions",
+                "treasuryFee": treasury_fee_wei,
+                "tokenAddress": NATIVE_TOKEN,
+            }
+            print("Uploading fee metadata to Kubo IPFS...")
+            cid = upload_to_kubo_ipfs(fee_metadata) or "QmDefaultFeeCID"
+            print(f"Fee Metadata CID: {cid}")
 
-        print(f"Setting platform fee ({fee_amount} {token_symbol})...")
-        tx3 = contract.setPriceCompetitionFee(treasury_fee_wei, NATIVE_TOKEN, cid, sender=account_platform)
-        print(f"Fee TX Hash     : {tx3.txn_hash}")
+            print(f"Setting platform fee ({fee_amount} {token_symbol})...")
+            tx3 = contract.setPriceCompetitionFee(treasury_fee_wei, NATIVE_TOKEN, cid, sender=account_platform)
+            print(f"Fee TX Hash     : {tx3.txn_hash}")
 
-        print("\nAll 3 setup commands executed successfully!")
+        print("\nAll setup commands executed successfully!")

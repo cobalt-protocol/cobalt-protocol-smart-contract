@@ -45,7 +45,7 @@ def cli(account_name, new_owner_address, contract_address, network):
         print(f"New Owner   : {new_owner_address}")
 
         print("\nUpdating CompetitionManager owner...")
-        tx = contract.updateOwner(new_owner_address, sender=akun)
+        tx = contract.transferOwnership(new_owner_address, sender=akun)
 
         print(f"TX Hash     : {tx.txn_hash}")
         print(f"New Owner   : {contract.owner()}")
