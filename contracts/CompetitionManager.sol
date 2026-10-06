@@ -10,9 +10,8 @@ import {IPFSHelper} from "./helpers/IPFSHelper.sol";
 import {CertificateHelper} from "./helpers/CertificateHelper.sol";
 import {FormationHelper} from "./helpers/FormationHelper.sol";
 import {CompetitionHelper} from "./helpers/CompetitionHelper.sol";
-import {CompetitionModifiers} from "./helpers/modifier/CompetitionModifiers.sol";
 
-contract CompetitionManager is ERC721, ERC721URIStorage, Ownable, CompetitionModifiers {
+contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     // =============================================================
     //                      CUSTOM ERRORS
     // =============================================================
@@ -40,6 +39,9 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable, CompetitionMod
     error CertificateNonTransferable();
     error InvalidTeamId();
     error NativeFromMismatch();
+    error CompetitionDoesNotExist();
+    error NotOrganization();
+    error CompetitionNotEnded();
 
     // =============================================================
     //                      STRUCTS
@@ -233,19 +235,19 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable, CompetitionMod
     );
 
     // =============================================================
-    //              CompetitionModifiers overrides
+    //                      MODIFIERS
     // =============================================================
 
-    function _competitionExists(uint256 competitionId) internal view override returns (bool) {
-        return competitions[competitionId].id != 0;
+    modifier onlyOrganization(uint256 _competitionId) {
+        if (competitions[_competitionId].id == 0) revert CompetitionDoesNotExist();
+        if (competitions[_competitionId].organization != msg.sender) revert NotOrganization();
+        _;
     }
 
-    function _competitionOrganization(uint256 competitionId) internal view override returns (address) {
-        return competitions[competitionId].organization;
-    }
-
-    function _competitionPrizeCertificateClaim(uint256 competitionId) internal view override returns (uint256) {
-        return competitions[competitionId].prizeCertificateClaim;
+    modifier onlyCompetitionEnd(uint256 _competitionId) {
+        if (competitions[_competitionId].id == 0) revert CompetitionDoesNotExist();
+        if (block.timestamp < competitions[_competitionId].prizeCertificateClaim) revert CompetitionNotEnded();
+        _;
     }
 
     constructor(
