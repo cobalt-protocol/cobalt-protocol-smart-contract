@@ -32,9 +32,7 @@ library CompetitionHelper {
     // =============================================================
 
     /// @dev Pastikan token sudah terdaftar dan masih aktif.
-    function requireTokenActive(
-        ListingToken storage token
-    ) internal view {
+    function requireTokenActive(ListingToken storage token) internal view {
         if (token.id == 0) revert TokenNotListed();
         if (!token.isActive) revert TokenNotActive();
     }

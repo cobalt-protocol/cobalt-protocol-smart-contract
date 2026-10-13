@@ -1,6 +1,6 @@
 {
   "competition": {
-    "name": "Web3 Hackathon 2026 #2",
+    "name": "Hackathon Gratis #1",
     "category": "Hackathon",
     "description": "Build innovative dApps using blockchain technology.",
     "requirements": "Open for all developers",
@@ -30,13 +30,25 @@
     {
       "title": "2nd Place",
       "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
-      "prizeAmount": 2,
+      "prizeAmount": 1.5,
       "certificateCID": ""
     },
     {
       "title": "3rd Place",
       "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
-      "prizeAmount": 2,
+      "prizeAmount": 1,
+      "certificateCID": ""
+    },
+    {
+      "title": "4rd Place",
+      "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
+      "prizeAmount": 0.5,
+      "certificateCID": ""
+    },
+    {
+      "title": "Best Presentation",
+      "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
+      "prizeAmount": 0.1,
       "certificateCID": ""
     }
   ]

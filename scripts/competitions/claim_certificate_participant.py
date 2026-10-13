@@ -9,6 +9,10 @@ from web3 import Web3
 
 load_dotenv()
 
+# Hardcoded CID (raw, tanpa prefix ipfs://) untuk CompetitionManager.safeMintCertificateParticipant(_cid)
+# Ganti dengan CID IPFS metadata sertifikat yang valid. Contoh: bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi
+HARDCODED_CID = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+
 
 @click.command()
 @click.argument("account_name")
@@ -81,12 +85,21 @@ def cli(account_name, competition_id, team_id, contract_address, network):
             print(f"Error: Competition ID {competition_id} has not ended yet.")
             return
 
-        certificate_uri = comp.certificateCID if comp.certificateCID else ""
-        # NOTE: raw CID only — matches CompetitionManager.safeMintCertificateParticipant hash (cid, not ipfs:// uri)
-
         if team_id <= 0:
             print("Error: team_id must be a positive integer.")
             return
+
+        # Hardcoded CID — CompetitionManager sekarang butuh _cid eksplisit.
+        # Hash = keccak256(abi.encodePacked(address(this), msg.sender, _competitionId, _teamId, _cid)) dengan _cid = HARDCODED_CID.
+        # On-chain akan derive URI via IPFSHelper.toIPFSURI(_cid) => ipfs://<cid>.
+        effective_cid_raw = HARDCODED_CID.strip().removeprefix("ipfs://").strip()
+        if not effective_cid_raw:
+            print("Error: HARDCODED_CID kosong — isi konstanta HARDCODED_CID di atas file dengan raw IPFS CID.")
+            return
+        if comp.certificateCID and effective_cid_raw != comp.certificateCID:
+            print(f"Info: Hardcoded CID '{effective_cid_raw}' berbeda dari on-chain competition.certificateCID '{comp.certificateCID}' — hash pakai hardcoded.")
+
+        effective_uri = f"ipfs://{effective_cid_raw}"
 
         print(f"\n{'='*50}")
         print("Claim Certificate Participant")
@@ -95,29 +108,33 @@ def cli(account_name, competition_id, team_id, contract_address, network):
         print(f"Organization   : {comp.organization}")
         print(f"Participant    : {akun.address}")
         print(f"Team ID        : {team_id}")
-        print(f"Certificate URI: {certificate_uri}")
+        print(f"Certificate CID (raw _cid): {effective_cid_raw or '(empty)'}")
+        print(f"Certificate URI (on-chain): {effective_uri}")
 
         print("\nGenerating signature from PRIVATE_KEY_SIGNER...")
         contract_checksum = Web3.to_checksum_address(contract.address)
         caller_checksum = Web3.to_checksum_address(akun.address)
 
-        # Single msg.sender — must match CompetitionManager.safeMintCertificateParticipant
-        # keccak256(abi.encodePacked(address(this), msg.sender, _competitionId, _teamId, cid))
-        # cid = competition.certificateCID raw (no ipfs:// prefix)
+        # Must match CompetitionManager.safeMintCertificateParticipant hash which now uses explicit _cid param.
+        # keccak256(abi.encodePacked(address(this), msg.sender, _competitionId, _teamId, _cid)) where _cid is raw CID.
+        # Also matches API hashParticipantCertificate() which hashes freshly pinned metadata CID.
+        # Use --cid <metadataCidRaw> to reproduce API sig exactly.
         msg_hash = Web3.solidity_keccak(
             ["address", "address", "uint256", "uint256", "string"],
-            [contract_checksum, caller_checksum, competition_id, team_id, certificate_uri],
+            [contract_checksum, caller_checksum, competition_id, team_id, effective_cid_raw],
         )
         signable_msg = encode_defunct(primitive=msg_hash)
         signed_msg = signer_account.sign_message(signable_msg)
         signature = signed_msg.signature
 
         print("Minting certificate with signature...")
+        print(f"Calling safeMintCertificateParticipant({competition_id}, {team_id}, sig, _cid='{effective_cid_raw}')")
 
         tx = contract.safeMintCertificateParticipant(
             competition_id,
             team_id,
             signature,
+            effective_cid_raw,
             sender=akun,
         )
 

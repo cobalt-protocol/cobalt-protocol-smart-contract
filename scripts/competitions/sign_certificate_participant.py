@@ -21,13 +21,25 @@ load_dotenv()
     help="Team ID of the participant",
 )
 @click.option(
+    "--cid",
+    "certificate_cid",
+    default=None,
+    help="Raw IPFS CID for _cid param (without ipfs://). If omitted, falls back to competition.certificateCID on-chain (backward compat).",
+)
+@click.option(
+    "--certificate-cid",
+    "certificate_cid_alias",
+    default=None,
+    hidden=True,
+)
+@click.option(
     "--contract",
     "contract_address",
     default=None,
     help="Contract address (default: COMPETITION_CONTRACT from .env)",
 )
 @click.option("--network", help="Network specifier")
-def cli(participant_address, competition_id, team_id, contract_address, network):
+def cli(participant_address, competition_id, team_id, certificate_cid, certificate_cid_alias, contract_address, network):
     contract_address = contract_address or os.getenv("COMPETITION_CONTRACT") or os.getenv("CERTIFICATE_COMPETITION_CONTRACT")
     if not contract_address:
         print(
@@ -82,11 +94,29 @@ def cli(participant_address, competition_id, team_id, contract_address, network)
             print(f"Error: Competition ID {competition_id} has not ended yet.")
             return
 
-        certificate_uri = comp.certificateCID if comp.certificateCID else ""
-        # NOTE: raw CID only — matches CompetitionManager.safeMintCertificateParticipant hash (cid, not ipfs:// uri)
+        # Resolve effective _cid (raw, without ipfs://) for CompetitionManager.safeMintCertificateParticipant(_cid).
+        # New contract: hash = keccak256(abi.encodePacked(address(this), msg.sender, _competitionId, _teamId, _cid))
+        # where _cid is the explicit string param passed to safeMintCertificateParticipant, not necessarily
+        # competition.certificateCID. On-chain does IPFSHelper.toIPFSURI(_cid) ("ipfs://" + _cid) internally.
+        # certId = keccak256(abi.encodePacked(_competitionId, _teamId, msg.sender, _cid)) via CertificateHelper.
+        # Priority: explicit --cid / --certificate-cid > on-chain competition.certificateCID (backward compat).
+        explicit_raw = (certificate_cid if certificate_cid is not None else certificate_cid_alias) or ""
+        explicit_raw = explicit_raw.strip()
+        if explicit_raw.startswith("ipfs://"):
+            explicit_raw = explicit_raw[7:].strip()
 
-        if not comp.certificateCID:
-            print("Warning: Competition certificateCID is empty, using empty CID.")
+        if explicit_raw:
+            effective_cid_raw = explicit_raw
+            if comp.certificateCID and explicit_raw != comp.certificateCID:
+                print(f"Info: Using explicit --cid '{effective_cid_raw}' (differs from on-chain competition.certificateCID '{comp.certificateCID}').")
+        else:
+            effective_cid_raw = comp.certificateCID if comp.certificateCID else ""
+            if not comp.certificateCID:
+                print("Warning: Competition certificateCID is empty and no --cid provided, using empty _cid.")
+            else:
+                print(f"Info: --cid not provided, using on-chain competition.certificateCID: {effective_cid_raw}")
+
+        effective_uri = f"ipfs://{effective_cid_raw}" if effective_cid_raw else ""
 
         print(f"\n{'='*50}")
         print("Sign Certificate Participant")
@@ -95,7 +125,8 @@ def cli(participant_address, competition_id, team_id, contract_address, network)
         print(f"Organization   : {comp.organization}")
         print(f"Participant    : {participant_checksum_early}")
         print(f"Team ID        : {team_id}")
-        print(f"Certificate URI: {certificate_uri}")
+        print(f"Certificate CID (raw _cid): {effective_cid_raw or '(empty)'}")
+        print(f"Certificate URI (on-chain): {effective_uri}")
 
         print("\nGenerating signature from PRIVATE_KEY_SIGNER...")
         contract_checksum = Web3.to_checksum_address(contract.address)
@@ -107,14 +138,15 @@ def cli(participant_address, competition_id, team_id, contract_address, network)
         #   msg.sender,
         #   _competitionId,
         #   _teamId,
-        #   cid
+        #   _cid
         # ))
-        # where cid = competition.certificateCID raw (no ipfs:// prefix)
-        # verified via CompetitionHelper.verifySig -> ECDSA.recover(toEthSignedMessageHash(hash), sig)
-        # NOTE: single msg.sender — duplicate was a copy-paste bug, wastes gas & causes mismatch if not synced.
+        # _cid = raw CID (no ipfs://) passed as 4th arg to safeMintCertificateParticipant.
+        # Verified via CompetitionHelper.verifySig -> ECDSA.recover(toEthSignedMessageHash(hash), sig).
+        # Also matches API: certificate-signature.util.ts hashParticipantCertificate() which hashes the
+        # freshly pinned metadata CID (pinJsonToIpfs) as _cid. Use --cid <metadataCidRaw> to reproduce API sig.
         msg_hash = Web3.solidity_keccak(
             ["address", "address", "uint256", "uint256", "string"],
-            [contract_checksum, participant_checksum, competition_id, team_id, certificate_uri],
+            [contract_checksum, participant_checksum, competition_id, team_id, effective_cid_raw],
         )
         signable_msg = encode_defunct(primitive=msg_hash)
         signed_msg = signer_account.sign_message(signable_msg)
