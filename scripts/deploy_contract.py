@@ -32,56 +32,8 @@ def update_env(competition_address: str):
         competition_address,
     )
 
-    set_key(
-        env_path,
-        "CERTIFICATE_COMPETITION_CONTRACT",
-        competition_address,
-    )
-
-    set_key(
-        env_path,
-        "TREASURY_PLATFORM_CONTRACT",
-        competition_address,
-    )
-
-    set_key(
-        env_path,
-        "LISTING_TOKEN_CONTRACT",
-        competition_address,
-    )
-
-    set_key(
-        env_path,
-        "PRICE_COMPETITION_MANAGER_CONTRACT",
-        competition_address,
-    )
-
-    set_key(
-        env_path,
-        "SIGNER_MANAGER_CONTRACT",
-        competition_address,
-    )
-
-    set_key(
-        env_path,
-        "SIGNER_MANAGER_CERTIFICATE_CONTRACT",
-        competition_address,
-    )
-
-    set_key(
-        env_path,
-        "CERTIFICATE_MANAGER_CONTRACT",
-        competition_address,
-    )
-
-    set_key(
-        env_path,
-        "TREASURY_PRIZE_CONTRACT",
-        competition_address,
-    )
-
     print("\nUpdated .env:")
-    print(f"  COMPETITION_CONTRACT=" f"{competition_address}")
+    print(f"  COMPETITION_CONTRACT={competition_address}")
 
 
 def rpc_request(

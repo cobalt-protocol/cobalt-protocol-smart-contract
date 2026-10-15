@@ -45,6 +45,8 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     error WinnerAlreadyClaimed();
     error NotAllWinnersRecorded();
     error PrizesAlreadyDistributed();
+    error WithdrawTooEarly();
+    error PrizesNotDistributed(); // <-- NEW
 
     // =============================================================
     //                      STRUCTS
@@ -257,6 +259,13 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         uint256 amount
     );
 
+    event TeamPaymentWithdrawn(
+        uint256 indexed competitionId,
+        address indexed token,
+        address indexed to,
+        uint256 amount
+    );
+
     // =============================================================
     //                      MODIFIERS
     // =============================================================
@@ -410,6 +419,90 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
             _to,
             _amount
         );
+    }
+
+    /**
+     * @notice Tarik dana hasil paymentCreateTeam (versi lama).
+     * Hanya organization kompetisi yang boleh menarik.
+     * Syarat: hadiah BELUM didistribusikan + sudah lewat 7 hari setelah end time + signature.
+     */
+    function withdrawTeamPayment(
+        uint256 _competitionId,
+        address _token,
+        uint256 _amount,
+        uint256 _teamId,
+        bytes calldata _signature
+    ) external onlyOrganization(_competitionId) {
+        if (_amount == 0) revert AmountZero();
+        if (totalPaid[_competitionId][_token] < _amount)
+            revert InsufficientPrizeBalance();
+
+        if (prizesDistributed[_competitionId]) {
+            revert PrizesAlreadyDistributed();
+        }
+
+        uint256 competitionEndTime = competitions[_competitionId]
+            .prizeCertificateClaim;
+        uint256 sevenDays = 7 days;
+
+        if (block.timestamp < competitionEndTime + sevenDays) {
+            revert WithdrawTooEarly();
+        }
+
+        CompetitionHelper.verifySig(
+            keccak256(
+                abi.encodePacked(
+                    address(this),
+                    _competitionId,
+                    _token,
+                    _amount,
+                    _teamId,
+                    msg.sender
+                )
+            ),
+            _signature,
+            signerAddress
+        );
+
+        totalPaid[_competitionId][_token] -= _amount;
+
+        if (_token == address(0)) {
+            (bool ok, ) = payable(msg.sender).call{value: _amount}("");
+            if (!ok) revert TransferFailed();
+        } else {
+            if (!IERC20(_token).transfer(msg.sender, _amount))
+                revert TransferFailed();
+        }
+
+        emit TeamPaymentWithdrawn(_competitionId, _token, msg.sender, _amount);
+    }
+
+    /**
+     * @notice Claim / tarik dana hasil paymentCreateTeam.
+     * Hanya boleh dipanggil oleh organization kompetisi,
+     * dan hanya setelah semua hadiah sudah didistribusikan (prizesDistributed = true).
+     */
+    function claimTeamPayment(
+        uint256 _competitionId,
+        address _token,
+        uint256 _amount
+    ) external onlyOrganization(_competitionId) {
+        if (_amount == 0) revert AmountZero();
+        if (!prizesDistributed[_competitionId]) revert PrizesNotDistributed();
+        if (totalPaid[_competitionId][_token] < _amount)
+            revert InsufficientPrizeBalance();
+
+        totalPaid[_competitionId][_token] -= _amount;
+
+        if (_token == address(0)) {
+            (bool ok, ) = payable(msg.sender).call{value: _amount}("");
+            if (!ok) revert TransferFailed();
+        } else {
+            if (!IERC20(_token).transfer(msg.sender, _amount))
+                revert TransferFailed();
+        }
+
+        emit TeamPaymentWithdrawn(_competitionId, _token, msg.sender, _amount);
     }
 
     // =============================================================
