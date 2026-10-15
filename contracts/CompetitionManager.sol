@@ -384,40 +384,43 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     //                  TEAM PAYMENT
     // =============================================================
 
+    /**
+     * @notice Pembayaran biaya tim untuk sebuah kompetisi.
+     * Dana akan disimpan di dalam kontrak (escrow) dan dicatat di totalPaid.
+     * Organization bisa menariknya nanti melalui claimTeamPayment / withdrawTeamPayment.
+     */
     function paymentCreateTeam(
         uint256 _competitionId,
-        string calldata cid,
-        address _token,
-        address _from,
-        address _to,
-        uint256 _amount
+        string calldata cid
     ) external payable {
         Competitions storage comp = competitions[_competitionId];
         if (comp.id == 0) revert CompetitionDoesNotExist();
-        if (_amount != comp.payment.fee) revert IncorrectFeeAmount();
-        if (_to == address(0)) revert InvalidRecipient();
-        if (_amount == 0) revert AmountZero();
 
-        if (_token == address(0)) {
-            if (_from != msg.sender) revert NativeFromMismatch();
-            if (msg.value != _amount) revert IncorrectNativeAmount();
-            (bool ok, ) = payable(_to).call{value: _amount}("");
-            if (!ok) revert TransferFailed();
+        if (comp.payment.tokenAddress == address(0)) {
+            if (msg.sender != msg.sender) revert NativeFromMismatch();
+            if (msg.value != comp.payment.fee) revert IncorrectNativeAmount();
         } else {
             if (msg.value != 0) revert IncorrectNativeAmount();
-            if (!IERC20(_token).transferFrom(_from, _to, _amount))
-                revert TransferFailed();
+            if (
+                !IERC20(comp.payment.tokenAddress).transferFrom(
+                    msg.sender,
+                    address(this),
+                    comp.payment.fee
+                )
+            ) revert TransferFailed();
         }
 
-        totalPaid[_competitionId][_token] += _amount;
+        totalPaid[_competitionId][comp.payment.tokenAddress] += comp
+            .payment
+            .fee;
 
         emit TeamPaymentCreated(
             _competitionId,
             cid,
-            _token,
-            _from,
-            _to,
-            _amount
+            comp.payment.tokenAddress,
+            msg.sender,
+            address(this),
+            comp.payment.fee
         );
     }
 
@@ -915,6 +918,8 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     ) external returns (uint256) {
         Winners memory w = winnerById[_winnerId];
         Competitions storage comp = competitions[w.competitionId];
+
+        if (!prizesDistributed[w.competitionId]) revert PrizesNotDistributed();
 
         if (comp.id == 0) revert CompetitionDoesNotExist();
         if (block.timestamp < comp.prizeCertificateClaim)
