@@ -106,7 +106,7 @@ def test_create_competition_and_winner(competition_manager, owner, organization,
         (NATIVE_TOKEN, 0),    # payment (tokenAddress, fee)
     )
     winners_data = [
-        (0, 0, NATIVE_TOKEN, 1000, "winnerCertCID", 1),
+        (0, 0, NATIVE_TOKEN, 1000, "winnerCertCID"),
     ]
 
     competition_manager.createCompetition(
@@ -142,7 +142,7 @@ def test_soulbound_nft_mint_and_transfer(competition_manager, owner, organizatio
         claim, "certCID", (NATIVE_TOKEN, 0),
     )
     winners_data = [
-        (0, 0, NATIVE_TOKEN, 100, "winnerCertCID", 1),
+        (0, 0, NATIVE_TOKEN, 100, "winnerCertCID"),
     ]
 
     competition_manager.createCompetition(
@@ -164,15 +164,15 @@ def test_soulbound_nft_mint_and_transfer(competition_manager, owner, organizatio
     # Single msg.sender — must match CompetitionManager.safeMintCertificateParticipant
     # keccak256(abi.encodePacked(address(this), msg.sender, _competitionId, _teamId, uri))
     msg_hash = Web3.solidity_keccak(
-        ["address", "address", "uint256", "uint256", "string"],
-        [contract_checksum, participant_checksum, 1, 1, uri],
+        ["address", "address", "uint256", "string", "string"],
+        [contract_checksum, participant_checksum, 1, "team-1", uri],
     )
     signable_msg = encode_defunct(primitive=msg_hash)
     signed_msg = signer_account.sign_message(signable_msg)
     signature = signed_msg.signature
 
     competition_manager.safeMintCertificateParticipant(
-        1, 1, signature, sender=participant,
+        1, "team-1", signature, sender=participant,
     )
 
     assert competition_manager.ownerOf(0) == participant.address
@@ -195,7 +195,7 @@ def test_payment_create_team_native(competition_manager, owner, organization, pa
         (NATIVE_TOKEN, 100),
     )
     winners_data = [
-        (0, 0, NATIVE_TOKEN, 100, "winnerCertCID", 1),
+        (0, 0, NATIVE_TOKEN, 100, "winnerCertCID"),
     ]
 
     competition_manager.createCompetition(

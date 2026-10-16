@@ -73,7 +73,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         address prizeToken;
         uint256 prizeAmount;
         string certificateCID;
-        uint256 teamId;
     }
 
     struct PriceCompetitionFee {
@@ -112,7 +111,8 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     mapping(uint256 => TreasuryPrize) public treasuryPrizeByCompetitionId;
     mapping(uint256 => mapping(address => uint256)) public totalPaid;
 
-    // key = keccak256(competitionId, teamId, wallet)
+    // claimedParticipantCertificate key = keccak256(competitionId, teamId, wallet, cid)
+    // claimedWinnerCertificate key = keccak256(competitionId, winnerId, teamId, wallet, cid)
     mapping(bytes32 => bool) public claimedParticipantCertificate;
     mapping(bytes32 => bool) public claimedWinnerCertificate;
 
@@ -121,6 +121,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
 
     // ===== NEW: untuk distribusi hadiah setelah semua winner dicatat =====
     mapping(uint256 => address) public winnerParticipant; // winnerId => participant
+    mapping(uint256 => string) public winnerTeamId; // winnerId => teamId
     mapping(uint256 => uint256) public winnersSetCount; // competitionId => jumlah winner yang sudah dicatat
     mapping(uint256 => bool) public prizesDistributed; // competitionId => sudah didistribusikan?
 
@@ -149,8 +150,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         uint256 indexed winnerId,
         address prizeToken,
         uint256 prizeAmount,
-        string certificateCID,
-        uint256 teamId
+        string certificateCID
     );
 
     event WinnerSet(
@@ -164,7 +164,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         uint256 indexed winnerId,
         address indexed participant,
         uint256 indexed competitionId,
-        uint256 teamId
+        string teamId
     );
 
     event CompetitionFeePaid(
@@ -200,13 +200,11 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         bool isActive
     );
 
-    event SignerAddressUpdated(address indexed signerAddress);
-
     event CertificateParticipantMinted(
         uint256 indexed tokenId,
         address indexed participant,
         uint256 indexed competitionId,
-        uint256 teamId,
+        string teamId,
         bytes signature,
         string uri
     );
@@ -216,7 +214,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         address indexed participant,
         uint256 indexed competitionId,
         uint256 winnerId,
-        uint256 teamId,
+        string teamId,
         bytes signature,
         string uri
     );
@@ -270,11 +268,16 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
     //                      MODIFIERS
     // =============================================================
 
+    modifier competitionExists(uint256 _competitionId) {
+        if (competitions[_competitionId].id == 0)
+            revert CompetitionDoesNotExist();
+        _;
+    }
+
+    /// @dev Cek apakah _competitionId valid ada di storage competitions
     modifier onlyOrganization(uint256 _competitionId) {
         if (competitions[_competitionId].id == 0)
             revert CompetitionDoesNotExist();
-        if (competitions[_competitionId].organization != msg.sender)
-            revert NotOrganization();
         _;
     }
 
@@ -300,7 +303,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
 
     function updateSignerAddress(address _signerAddress) external onlyOwner {
         signerAddress = _signerAddress;
-        emit SignerAddressUpdated(_signerAddress);
     }
 
     function addListingToken(address _tokenAddress) external onlyOwner {
@@ -433,10 +435,11 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         uint256 _competitionId,
         address _token,
         uint256 _amount,
-        uint256 _teamId,
+        string calldata _teamId,
         bytes calldata _signature
-    ) external onlyOrganization(_competitionId) {
+    ) external competitionExists(_competitionId) {
         if (_amount == 0) revert AmountZero();
+        if (bytes(_teamId).length == 0) revert InvalidTeamId();
         if (totalPaid[_competitionId][_token] < _amount)
             revert InsufficientPrizeBalance();
 
@@ -482,14 +485,13 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
 
     /**
      * @notice Claim / tarik dana hasil paymentCreateTeam.
-     * Hanya boleh dipanggil oleh organization kompetisi,
-     * dan hanya setelah semua hadiah sudah didistribusikan (prizesDistributed = true).
+     * Hanya setelah semua hadiah sudah didistribusikan (prizesDistributed = true).
      */
     function claimTeamPayment(
         uint256 _competitionId,
         address _token,
         uint256 _amount
-    ) external onlyOrganization(_competitionId) {
+    ) external competitionExists(_competitionId) {
         if (_amount == 0) revert AmountZero();
         if (!prizesDistributed[_competitionId]) revert PrizesNotDistributed();
         if (totalPaid[_competitionId][_token] < _amount)
@@ -561,7 +563,6 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
             if (_winners[i].prizeAmount == 0) revert PrizeAmountZero();
             if (_winners[i].prizeToken != firstPrizeToken)
                 revert PrizeTokenMismatch();
-            if (_winners[i].teamId == 0) revert InvalidTeamId();
 
             CompetitionHelper.requireTokenActive(
                 listingToken[_winners[i].prizeToken]
@@ -575,8 +576,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
                 competitionId: newId,
                 prizeToken: _winners[i].prizeToken,
                 prizeAmount: _winners[i].prizeAmount,
-                certificateCID: _winners[i].certificateCID,
-                teamId: _winners[i].teamId
+                certificateCID: _winners[i].certificateCID
             });
 
             winners[newId].push(w);
@@ -587,8 +587,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
                 winnerId,
                 w.prizeToken,
                 w.prizeAmount,
-                w.certificateCID,
-                w.teamId
+                w.certificateCID
             );
         }
 
@@ -683,14 +682,14 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         uint256 _winnerId,
         address _participant,
         uint256 _competitionId,
-        uint256 _teamId,
+        string calldata _teamId,
         bytes calldata _signature
-    ) external onlyOrganization(_competitionId) {
+    ) external competitionExists(_competitionId) {
         Winners memory w = winnerById[_winnerId];
 
         if (w.id == 0) revert WinnerDoesNotExist();
         if (w.competitionId != _competitionId) revert WinnerMismatch();
-        if (w.teamId != _teamId) revert WinnerMismatch();
+        if (bytes(_teamId).length == 0) revert InvalidTeamId();
         if (_participant == address(0)) revert InvalidRecipient();
 
         if (winnerParticipantClaimed[_winnerId][_participant]) {
@@ -717,6 +716,7 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
 
         // Catat pemenang
         winnerParticipant[_winnerId] = _participant;
+        winnerTeamId[_winnerId] = _teamId;
         winnerParticipantClaimed[_winnerId][_participant] = true;
         winnersSetCount[_competitionId]++;
 
@@ -730,11 +730,10 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
 
     /**
      * @notice Distribusikan hadiah ke SEMUA pemenang setelah semua sudah dicatat.
-     * Hanya bisa dipanggil oleh organization kompetisi tersebut.
      */
     function distributePrizes(
         uint256 _competitionId
-    ) external onlyOrganization(_competitionId) {
+    ) external competitionExists(_competitionId) {
         if (prizesDistributed[_competitionId])
             revert PrizesAlreadyDistributed();
 
@@ -863,11 +862,11 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
 
     function safeMintCertificateParticipant(
         uint256 _competitionId,
-        uint256 _teamId,
+        string calldata _teamId,
         bytes calldata _signature,
         string calldata _cid
     ) external onlyCompetitionEnd(_competitionId) returns (uint256) {
-        if (_teamId == 0) revert InvalidTeamId();
+        if (bytes(_teamId).length == 0) revert InvalidTeamId();
 
         bytes32 certId = CertificateHelper.certId(
             _competitionId,
@@ -917,28 +916,38 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
         string calldata _cid
     ) external returns (uint256) {
         Winners memory w = winnerById[_winnerId];
+
+        if (!prizesDistributed[w.competitionId]) {
+            revert PrizesNotDistributed();
+        }
+
         Competitions storage comp = competitions[w.competitionId];
 
-        if (!prizesDistributed[w.competitionId]) revert PrizesNotDistributed();
-
         if (comp.id == 0) revert CompetitionDoesNotExist();
-        if (block.timestamp < comp.prizeCertificateClaim)
-            revert CompetitionNotEnded();
 
-        bytes32 certId = CertificateHelper.certId(
-            w.competitionId,
-            w.teamId,
-            msg.sender,
-            _cid
-        );
-        if (claimedWinnerCertificate[certId])
-            revert CertificateAlreadyClaimed();
+        if (block.timestamp < comp.prizeCertificateClaim) {
+            revert CompetitionNotEnded();
+        }
+
+        string memory team = winnerTeamId[_winnerId];
 
         string memory uri = IPFSHelper.toIPFSURI(_cid);
 
+        bytes32 certId = CertificateHelper.winnerCertId(
+            w.competitionId,
+            _winnerId,
+            team,
+            msg.sender,
+            _cid
+        );
+
+        if (claimedWinnerCertificate[certId]) {
+            revert CertificateAlreadyClaimed();
+        }
+
         CompetitionHelper.verifySig(
             keccak256(
-                abi.encodePacked(address(this), msg.sender, _winnerId, uri)
+                abi.encodePacked(address(this), msg.sender, _winnerId, _cid)
             ),
             signature,
             signerAddress
@@ -946,20 +955,39 @@ contract CompetitionManager is ERC721, ERC721URIStorage, Ownable {
 
         claimedWinnerCertificate[certId] = true;
 
-        uint256 tokenId = _nextTokenId++;
-        _safeMint(msg.sender, tokenId);
+        return
+            _mintWinnerCertificate(
+                msg.sender,
+                w.competitionId,
+                _winnerId,
+                team,
+                signature,
+                uri
+            );
+    }
+
+    function _mintWinnerCertificate(
+        address participant,
+        uint256 competitionId,
+        uint256 winnerId,
+        string memory teamId,
+        bytes calldata signature,
+        string memory uri
+    ) internal returns (uint256 tokenId) {
+        tokenId = _nextTokenId++;
+
+        _safeMint(participant, tokenId);
         _setTokenURI(tokenId, uri);
 
         emit CertificateParticipantWinnerMinted(
             tokenId,
-            msg.sender,
-            w.competitionId,
-            _winnerId,
-            w.teamId,
+            participant,
+            competitionId,
+            winnerId,
+            teamId,
             signature,
             uri
         );
-        return tokenId;
     }
 
     // =============================================================
