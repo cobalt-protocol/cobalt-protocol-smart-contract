@@ -33,4 +33,35 @@ library CertificateHelper {
                 )
             );
     }
+
+    event CertificateParticipantWinnerMinted(
+        uint256 indexed tokenId,
+        address indexed participant,
+        uint256 indexed competitionId,
+        uint256 winnerId,
+        string teamId,
+        bytes signature,
+        string uri
+    );
+
+    /// @dev Emit event sertifikat pemenang setelah proses mint selesai.
+    function emitWinnerCertificateMinted(
+        uint256 tokenId,
+        address participant,
+        uint256 _competitionId,
+        uint256 _winnerId,
+        string memory teamId,
+        bytes calldata signature,
+        string memory uri
+    ) internal {
+        emit CertificateParticipantWinnerMinted(
+            tokenId,
+            participant,
+            _competitionId,
+            _winnerId,
+            teamId,
+            signature,
+            uri
+        );
+    }
 }

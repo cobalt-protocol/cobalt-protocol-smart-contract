@@ -58,20 +58,21 @@ def cli(account_name, competition_id, team_id, contract_address, network):
         saldo_eth = akun.balance / 10**18
 
         contract = project.CompetitionManager.at(contract_address)
-        contract_signer = contract.signerAddress()
 
         print(f"Caller               : {akun.address}")
         print(f"Local Signer         : {signer_account.address}")
-        print(f"Contract Signer      : {contract_signer}")
         print(f"Balance              : {saldo_eth} {token_symbol}")
         print(f"Contract             : {contract.address}")
 
-        if signer_account.address.lower() != contract_signer.lower():
-            print(
-                f"\nError: Local signer ({signer_account.address}) does NOT match contract signer ({contract_signer})!"
-            )
-            print("Please update signerAddress on CompetitionManager.")
-            return
+        if hasattr(contract, "signerAddress"):
+            contract_signer = contract.signerAddress()
+            print(f"Contract Signer      : {contract_signer}")
+            if signer_account.address.lower() != contract_signer.lower():
+                print(
+                    f"\nError: Local signer ({signer_account.address}) does NOT match contract signer ({contract_signer})!"
+                )
+                print("Please update signerAddress on CompetitionManager.")
+                return
 
         print(f"\nFetching competition ID {competition_id}...")
         comp = contract.getCompetition(competition_id)

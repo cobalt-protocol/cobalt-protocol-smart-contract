@@ -40,18 +40,6 @@
       "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
       "prizeAmount": 1,
       "certificateCID": ""
-    },
-    {
-      "title": "4rd Place",
-      "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
-      "prizeAmount": 0.5,
-      "certificateCID": ""
-    },
-    {
-      "title": "Best Presentation",
-      "prizeToken": "0x75edC9335175Fc0552D51D48439F229c10420fe3",
-      "prizeAmount": 0.1,
-      "certificateCID": ""
     }
   ]
 }

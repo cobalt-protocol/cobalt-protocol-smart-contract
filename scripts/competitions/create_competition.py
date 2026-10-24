@@ -8,6 +8,10 @@ import click
 import requests
 from ape import accounts, networks, project, Contract
 from dotenv import load_dotenv
+from eth_abi import encode as abi_encode
+from eth_account import Account
+from eth_account.messages import encode_defunct
+from web3 import Web3
 
 load_dotenv()
 
@@ -251,19 +255,17 @@ def cli(account_name, input_json, contract_address, network):
                 print(f"Error: Winner [{i}] prizeToken ({w['prizeToken']}) does not match first winner prizeToken ({first_prize_token}). All winners in a competition must use the same prize token.")
                 return
 
-        listed_token = contract.listingToken(first_prize_token)
-        if listed_token.id == 0:
+        if not contract.isTokenListed(first_prize_token):
             print(f"Error: Prize token ({first_prize_token}) is not listed in CompetitionManager.")
             return
-        if not listed_token.isActive:
+        if not contract.isTokenActive(first_prize_token):
             print(f"Error: Prize token ({first_prize_token}) is listed but deactivated in CompetitionManager.")
             return
 
-        listed_competition_token = contract.listingToken(competition_token)
-        if listed_competition_token.id == 0:
+        if not contract.isTokenListed(competition_token):
             print(f"Error: Competition team fee token ({competition_token}) is not listed in CompetitionManager.")
             return
-        if not listed_competition_token.isActive:
+        if not contract.isTokenActive(competition_token):
             print(f"Error: Competition team fee token ({competition_token}) is listed but deactivated in CompetitionManager.")
             return
 
@@ -392,15 +394,6 @@ def cli(account_name, input_json, contract_address, network):
 
         winners_input = []
         for i, w in enumerate(winners_data):
-            team_id = w.get("teamId", i + 1)
-            try:
-                team_id = int(team_id)
-            except (TypeError, ValueError):
-                print(f"Error: Winner [{i}] teamId ({w.get('teamId')}) is not a valid integer.")
-                return
-            if team_id <= 0:
-                print(f"Error: Winner [{i}] teamId must be a positive integer.")
-                return
             prize_amount_wei = parse_prize_wei(w["prizeAmount"], prize_token_decimals)
             if prize_amount_wei == 0:
                 print(f"Error: Winner [{i}] prizeAmount must be greater than zero.")
@@ -411,8 +404,44 @@ def cli(account_name, input_json, contract_address, network):
                 w["prizeToken"],
                 prize_amount_wei,
                 w.get("certificateCID", ""),
-                team_id,
             ))
+
+        private_key_signer = os.getenv("PRIVATE_KEY_SIGNER")
+        if not private_key_signer:
+            print("Error: PRIVATE_KEY_SIGNER is not set in .env")
+            return
+
+        signer_account = Account.from_key(private_key_signer)
+        if hasattr(contract, "signerAddress"):
+            contract_signer = contract.signerAddress()
+            if signer_account.address.lower() != contract_signer.lower():
+                print(
+                    f"Error: Local signer ({signer_account.address}) does NOT match contract signer ({contract_signer})!"
+                )
+                return
+
+        contract_checksum = Web3.to_checksum_address(contract.address)
+        encoded_params = abi_encode(
+            [
+                "address",
+                "(uint256,string,string,address,uint256,string,(address,uint256))",
+                "(address,uint256)",
+                "(uint256,uint256,address,uint256,string)[]",
+                "uint256",
+            ],
+            [
+                contract_checksum,
+                competition_input,
+                payment_input,
+                winners_input,
+                platform_fee_id,
+            ],
+        )
+        msg_hash = Web3.keccak(encoded_params)
+        signable_msg = encode_defunct(primitive=msg_hash)
+        signed_msg = signer_account.sign_message(signable_msg)
+        sig_hex = signed_msg.signature.hex()
+        signature_formatted = sig_hex if sig_hex.startswith("0x") else f"0x{sig_hex}"
 
         claim_dt = datetime.fromtimestamp(prize_claim, tz=timezone.utc)
 
@@ -495,6 +524,7 @@ def cli(account_name, input_json, contract_address, network):
             payment_input,
             winners_input,
             platform_fee_id,
+            signature_formatted,
             **tx_kwargs,
         )
 
