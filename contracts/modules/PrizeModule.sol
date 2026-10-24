@@ -13,7 +13,6 @@ abstract contract PrizeModule is ManagerStorage {
     error InvalidRecipient();
     error WinnerDoesNotExist();
     error WinnerMismatch();
-    error WinnerAlreadyClaimed();
     error NotAllWinnersRecorded();
     error DistributePeriodExpired();
 
@@ -57,14 +56,6 @@ abstract contract PrizeModule is ManagerStorage {
         if (bytes(_teamId).length == 0) revert InvalidTeamId();
         if (_participant == address(0)) revert InvalidRecipient();
 
-        if (winnerParticipantClaimed[_winnerId][_participant]) {
-            revert WinnerAlreadyClaimed();
-        }
-        // Pastikan winner slot ini belum diisi orang lain
-        if (winnerParticipant[_winnerId] != address(0)) {
-            revert WinnerAlreadyClaimed();
-        }
-
         CompetitionHelper.verifySig(
             keccak256(
                 abi.encodePacked(
@@ -80,10 +71,11 @@ abstract contract PrizeModule is ManagerStorage {
         );
 
         // Catat pemenang
-        winnerParticipant[_winnerId] = _participant;
+        if (bytes(winnerTeamId[_winnerId]).length == 0) {
+            winnersSetCount[_competitionId]++;
+        }
+        winnerParticipant[_competitionId][_teamId] = _participant;
         winnerTeamId[_winnerId] = _teamId;
-        winnerParticipantClaimed[_winnerId][_participant] = true;
-        winnersSetCount[_competitionId]++;
 
         emit WinnerSet(
             _winnerId,
@@ -129,7 +121,9 @@ abstract contract PrizeModule is ManagerStorage {
 
         for (uint256 i; i < totalWinners; ++i) {
             Winners memory w = allWinners[i];
-            address participant = winnerParticipant[w.id];
+            address participant = winnerParticipant[_competitionId][
+                winnerTeamId[w.id]
+            ];
 
             if (participant == address(0)) revert WinnerDoesNotExist();
             if (w.prizeAmount == 0) revert AmountZero();
@@ -175,9 +169,10 @@ abstract contract PrizeModule is ManagerStorage {
     }
 
     function getWinnerParticipant(
-        uint256 _winnerId
+        uint256 _competitionId,
+        string calldata _teamId
     ) external view returns (address) {
-        return winnerParticipant[_winnerId];
+        return winnerParticipant[_competitionId][_teamId];
     }
 
     function getWinnersSetCount(

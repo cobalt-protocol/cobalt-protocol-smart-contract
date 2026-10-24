@@ -88,10 +88,8 @@ abstract contract ManagerStorage is Ownable {
     mapping(uint256 => TreasuryPrize) internal treasuryPrizeByCompetitionId;
     mapping(uint256 => mapping(address => uint256)) internal totalPaid;
 
-    mapping(uint256 => mapping(address => bool))
-        internal winnerParticipantClaimed;
-
-    mapping(uint256 => address) internal winnerParticipant; // winnerId => participant
+    mapping(uint256 => mapping(string => address))
+        internal winnerParticipant; // competitionId => teamId => participant
     mapping(uint256 => string) internal winnerTeamId; // winnerId => teamId
     mapping(uint256 => uint256) internal winnersSetCount; // competitionId => jumlah winner dicatat
     mapping(uint256 => bool) internal prizesDistributed; // competitionId => sudah didistribusikan?
